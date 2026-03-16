@@ -50,7 +50,7 @@ Each script is tagged with the minimum permission required. Eradication scripts 
 
 ---
 
-## Script Reference — Windows (22 scripts)
+## Script Reference — Windows (22 scripts · 36 total across all platforms)
 
 ### Triage
 *Run these first. Establish situational awareness before taking any action.*
@@ -124,7 +124,7 @@ Each script is tagged with the minimum permission required. Eradication scripts 
 
 ---
 
-## Script Reference — macOS (5 scripts)
+## Script Reference — macOS (8 scripts)
 
 All macOS scripts are Bash/Zsh. Upload as `.sh` files with the `macos/` path prefix.
 
@@ -135,6 +135,19 @@ All macOS scripts are Bash/Zsh. Upload as `.sh` files with the `macos/` path pre
 | [`macos/triage/host-summary.sh`](macos/triage/host-summary.sh) | Identification | OS version, serial, uptime, local admins, network interfaces, EDR agent status, FileVault + SIP state |
 | [`macos/triage/active-connections.sh`](macos/triage/active-connections.sh) | Identification | Established sockets and listening ports mapped to process via lsof; ARP cache; application firewall state |
 | [`macos/triage/logged-on-users.sh`](macos/triage/logged-on-users.sh) | Identification | Current sessions, recent login history, failed auth events, active SSH connections |
+
+### Process Investigation
+
+| Script | IR Phase | Description |
+|---|---|---|
+| [`macos/process-investigation/process-tree.sh`](macos/process-investigation/process-tree.sh) | Identification | Full parent→child process hierarchy; flags browsers/Office spawning shells, suspicious path execution, top consumers |
+| [`macos/process-investigation/unsigned-binaries.sh`](macos/process-investigation/unsigned-binaries.sh) | Identification | codesign + Gatekeeper assessment of all running process binaries; flags unsigned, ad-hoc signed, and high-risk-path executables |
+
+### Artefact Collection
+
+| Script | IR Phase | Description |
+|---|---|---|
+| [`macos/artefact-collection/browser-history.sh`](macos/artefact-collection/browser-history.sh) | Identification | Safari, Chrome, Firefox history (last 7 days) + macOS quarantine download log via sqlite3 |
 
 ### Persistence
 
@@ -150,7 +163,7 @@ All macOS scripts are Bash/Zsh. Upload as `.sh` files with the `macos/` path pre
 
 ---
 
-## Script Reference — Linux (4 scripts)
+## Script Reference — Linux (6 scripts)
 
 All Linux scripts are Bash. Upload as `.sh` files with the `linux/` path prefix.
 
@@ -160,6 +173,18 @@ All Linux scripts are Bash. Upload as `.sh` files with the `linux/` path prefix.
 |---|---|---|
 | [`linux/triage/host-summary.sh`](linux/triage/host-summary.sh) | Identification | Distro, kernel, hardware info, last boot, current users, privileged accounts, network interfaces, EDR agents |
 | [`linux/triage/active-connections.sh`](linux/triage/active-connections.sh) | Identification | ss/netstat sockets with process info, DNS config, routes, neighbour cache, firewall state (ufw/firewalld/iptables) |
+
+### Process Investigation
+
+| Script | IR Phase | Description |
+|---|---|---|
+| [`linux/process-investigation/process-tree.sh`](linux/process-investigation/process-tree.sh) | Identification | Full process hierarchy; web-server→shell pairs (webshell indicator); deleted-binary and memfd execution; suspicious path processes |
+
+### Credential Indicators
+
+| Script | IR Phase | Description |
+|---|---|---|
+| [`linux/credential-indicators/credential-files.sh`](linux/credential-indicators/credential-files.sh) | Identification | passwd/shadow/sudoers status; UID-0 accounts; SSH authorized_keys; shell history credential scan; unusual SUID binaries; /proc/*/mem access |
 
 ### Persistence
 
@@ -250,9 +275,15 @@ Features:
 - **OS selector landing page** — choose Windows / macOS / Linux on arrival
 - **Platform switcher** — CS / S1 / MDE deployment commands generated automatically
 - **Monaco editor** with PowerShell and Bash syntax highlighting
-- **Dynamic pre-deploy checklist** — context-aware items based on IR phase and script type
+- **Dynamic pre-deploy checklist** — context-aware items based on IR phase, with copy-to-clipboard
 - **Parameter injection UI** — fill in script parameters, generates the full runscript command
 - **IR Workflow modal** — phase-organised script browser
+- **IR Playbooks** — 5 curated guided playbooks (Ransomware, Credential Theft, Persistence Hunt, macOS Triage, Linux Triage)
+- **MITRE ATT&CK coverage modal** — technique grid with clickable script links
+- **Script diff view** — Monaco diff editor comparing original vs your edits
+- **Favourites / pinning** — star scripts to pin them at the top of the sidebar
+- **Recently used** — quick access to last 4 scripts
+- **Cross-OS search** — search all platforms simultaneously when a query is active
 - **Export all** scripts as structured `.zip`
 - URL hash routing — scripts are bookmarkable/shareable
 

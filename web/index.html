@@ -96,6 +96,14 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h8M15.5 6.5L7 12M15.5 17.5L7 12"/></svg>
         Workflow
       </button>
+      <button id="btn-playbooks" class="btn btn-ghost" title="IR Playbooks — guided response sequences">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+        Playbooks
+      </button>
+      <button id="btn-attack" class="btn btn-ghost" title="MITRE ATT&amp;CK coverage map">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        ATT&amp;CK
+      </button>
       <button id="btn-new" class="btn btn-ghost" title="New script from template">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
         New
@@ -105,6 +113,10 @@
         Export All
       </button>
       <div class="header-divider"></div>
+      <button id="btn-diff" class="btn btn-ghost" title="Show diff (original vs current)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Diff
+      </button>
       <button id="btn-copy" class="btn btn-secondary" title="Copy script to clipboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         Copy
@@ -208,13 +220,20 @@
       </section>
 
       <section class="info-section">
-        <h3>Pre-deploy checklist</h3>
-        <ul class="checklist" id="info-checklist">
-          <li><label><input type="checkbox" /> Reviewed script logic</label></li>
-          <li><label><input type="checkbox" /> Tested in lab environment</label></li>
-          <li><label><input type="checkbox" /> Confirmed permission level</label></li>
-          <li><label><input type="checkbox" /> Documented in case notes</label></li>
-        </ul>
+        <div class="section-header-row">
+          <h3>Pre-deploy checklist</h3>
+          <button class="checklist-copy-btn" title="Copy checklist as plain text">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+          </button>
+        </div>
+        <div id="checklist-container">
+          <ul class="checklist" id="info-checklist">
+            <li><label><input type="checkbox" /> Reviewed script logic</label></li>
+            <li><label><input type="checkbox" /> Tested in lab environment</label></li>
+            <li><label><input type="checkbox" /> Confirmed permission level</label></li>
+            <li><label><input type="checkbox" /> Documented in case notes</label></li>
+          </ul>
+        </div>
       </section>
 
       <section class="info-section">
@@ -225,6 +244,61 @@
       </section>
 
     </aside>
+  </div>
+
+  <!-- ═══ DIFF MODAL ════════════════════════════════════════════════════════ -->
+  <div id="diff-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box diff-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Script Diff — Original vs Current
+        </div>
+        <p class="modal-subtitle">Left: original · Right: your edits</p>
+        <button class="modal-close" id="diff-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="diff-editor-container" class="diff-editor-container"></div>
+    </div>
+  </div>
+
+  <!-- ═══ PLAYBOOKS MODAL ════════════════════════════════════════════════════ -->
+  <div id="playbooks-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box playbooks-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          IR Playbooks
+        </div>
+        <p class="modal-subtitle">Click any script step to load it in the editor</p>
+        <button class="modal-close" id="playbooks-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="playbooks-list" id="playbooks-list">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ ATT&CK MODAL ═══════════════════════════════════════════════════════ -->
+  <div id="attack-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box attack-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          MITRE ATT&amp;CK Coverage
+        </div>
+        <p class="modal-subtitle" id="attack-summary">Loading coverage…</p>
+        <button class="modal-close" id="attack-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="attack-grid" id="attack-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
   </div>
 
   <!-- ═══ WORKFLOW MODAL ═══════════════════════════════════════════════════ -->

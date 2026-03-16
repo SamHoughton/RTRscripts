@@ -1231,3 +1231,223 @@ html, body {
   font-size: 12px;
   color: var(--text-muted);
 }
+
+/* ── MITRE TAG ──────────────────────────────────────────────────────────── */
+.tag-mitre {
+  background: rgba(74,254,145,0.08);
+  color: var(--text-accent);
+  border: 1px solid rgba(74,254,145,0.2);
+  font-family: var(--mono-font);
+  font-size: 10px;
+  cursor: default;
+}
+.tag-mitre:hover { background: rgba(74,254,145,0.15); }
+
+/* ── NAV STAR BUTTON ────────────────────────────────────────────────────── */
+.nav-item { position: relative; }
+.nav-item:not(:hover) .nav-star-btn { opacity: 0; }
+.nav-star-btn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+  border-radius: 3px;
+  transition: color 0.15s, opacity 0.15s;
+  flex-shrink: 0;
+}
+.nav-star-btn:hover { color: #fbbf24; }
+.nav-star-btn.starred { color: #fbbf24; opacity: 1; }
+
+/* ── PINNED / RECENT SECTION LABELS ────────────────────────────────────── */
+.nav-group-pinned { color: #fbbf24; }
+.nav-group-pinned::before { content: "★ "; font-size: 9px; }
+.nav-group-recent { color: var(--text-muted); opacity: 0.8; }
+.nav-group-recent::before { content: "⏱ "; font-size: 9px; }
+
+/* ── OS BADGE ON CROSS-OS SEARCH RESULTS ──────────────────────────────── */
+.nav-item-os-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 3px;
+  align-self: flex-start;
+  text-transform: uppercase;
+}
+.os-badge-windows { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
+.os-badge-macos   { background: rgba(139,92,246,0.15); color: #c4b5fd; border: 1px solid rgba(139,92,246,0.25); }
+.os-badge-linux   { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
+
+/* Also used as inline dots in ATT&CK modal */
+.attack-os-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: 5px;
+}
+.attack-os-dot.os-badge-windows { background: #60a5fa; border: none; padding: 0; }
+.attack-os-dot.os-badge-macos   { background: #c4b5fd; border: none; padding: 0; }
+.attack-os-dot.os-badge-linux   { background: #fb923c; border: none; padding: 0; }
+
+/* ── SECTION HEADER ROW ────────────────────────────────────────────────── */
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.section-header-row h3 { margin-bottom: 0; }
+.checklist-copy-btn {
+  background: none;
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+.checklist-copy-btn svg { width: 13px; height: 13px; }
+.checklist-copy-btn:hover { color: var(--text-accent); border-color: var(--text-accent); }
+
+/* ── DIFF MODAL ─────────────────────────────────────────────────────────── */
+.diff-box {
+  width: min(92vw, 1200px);
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.diff-editor-container {
+  flex: 1;
+  min-height: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+/* ── PLAYBOOKS MODAL ────────────────────────────────────────────────────── */
+.playbooks-box {
+  width: min(90vw, 900px);
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.playbooks-list {
+  overflow-y: auto;
+  flex: 1;
+  padding: 0 2px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 14px;
+  align-content: start;
+}
+.playbook-card {
+  background: var(--bg-active);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 14px 16px;
+  transition: border-color 0.15s;
+}
+.playbook-card:hover { border-color: rgba(74,254,145,0.3); }
+.playbook-header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.playbook-icon { font-size: 22px; line-height: 1; flex-shrink: 0; margin-top: 2px; }
+.playbook-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 3px; }
+.playbook-summary { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+.playbook-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  counter-reset: step;
+}
+.playbook-step {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+  counter-increment: step;
+}
+.playbook-step::before {
+  content: counter(step) ".";
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: var(--mono-font);
+}
+.playbook-step:hover { background: rgba(74,254,145,0.07); border-color: rgba(74,254,145,0.2); }
+.playbook-step-name { font-size: 12px; font-weight: 500; color: var(--text-primary); font-family: var(--mono-font); }
+.playbook-step-note { font-size: 11px; color: var(--text-muted); line-height: 1.3; }
+
+/* ── ATT&CK MODAL ──────────────────────────────────────────────────────── */
+.attack-box {
+  width: min(92vw, 1100px);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+}
+.attack-grid {
+  overflow-y: auto;
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+.attack-card {
+  background: var(--bg-active);
+  border: 1px solid var(--border-light);
+  border-radius: 7px;
+  padding: 10px 12px;
+  transition: border-color 0.15s;
+}
+.attack-card:hover { border-color: rgba(74,254,145,0.3); }
+.attack-technique-id {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-accent);
+  margin-bottom: 2px;
+}
+.attack-technique-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.attack-script-list { display: flex; flex-direction: column; gap: 3px; }
+.attack-script-item {
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--mono-font);
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attack-script-item:hover { background: rgba(74,254,145,0.08); color: var(--text-accent); }

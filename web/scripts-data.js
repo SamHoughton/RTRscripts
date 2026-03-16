@@ -19,6 +19,7 @@ window.RTR_SCRIPTS = [
     shortDesc:  "OS, uptime, local admins, AV, patches",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1082","T1016","T1033"],
     description: "Collects key host identity and health indicators in a single pass. Designed as the first script to run during the Identification phase — gives you enough context to decide whether deeper investigation is warranted.",
     usage: `runscript -CloudFile="triage/host-summary.ps1"`,
     source: `<#
@@ -91,6 +92,7 @@ Write-Output "===== END HOST SUMMARY ====="
     shortDesc:  "TCP/UDP sockets mapped to owning process",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1049","T1071"],
     description: "Maps every listening and established socket to its owning process and binary path. Critical during Identification — C2 channels, lateral movement, and exfiltration almost always leave a footprint here.",
     usage: `runscript -CloudFile="triage/active-connections.ps1"`,
     source: `<#
@@ -162,6 +164,7 @@ Write-Output "===== END ACTIVE CONNECTIONS ====="
     shortDesc:  "Active sessions + recent logon events",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1033","T1087","T1078"],
     description: "Enumerates interactive, RDP, and service sessions. Useful for confirming whether a legitimate user is active before isolating, and for spotting adversary-controlled accounts.",
     usage: `runscript -CloudFile="triage/logged-on-users.ps1"`,
     source: `<#
@@ -243,6 +246,7 @@ Write-Output "===== END LOGGED-ON USERS ====="
     shortDesc:  "Full parent-child hierarchy + suspicious pairs",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1057","T1055","T1036"],
     description: "Reconstructs the complete process tree and flags known-suspicious parent→child chains like Word→PowerShell. Essential for tracing initial access through macro execution or LOLBin abuse.",
     usage: `runscript -CloudFile="process-investigation/process-tree.ps1"`,
     source: `<#
@@ -320,6 +324,7 @@ Write-Output "===== END PROCESS TREE ====="
     shortDesc:  "Find running processes without valid code signing",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1036","T1055","T1574"],
     description: "Legitimate software is almost always signed. Unsigned binaries — especially from AppData/Temp/Desktop — are a strong malware indicator. Also catches processes running from deleted binaries on disk.",
     usage: `runscript -CloudFile="process-investigation/unsigned-processes.ps1"`,
     source: `<#
@@ -404,6 +409,7 @@ Write-Output "===== END UNSIGNED PROCESSES ====="
     shortDesc:  "Prefetch execution history + IOC name matching",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1083","T1059"],
     description: "Windows Prefetch records execution evidence for the last ~128 programs. This is one of the most valuable artefacts for establishing execution history — survives binary deletion. Includes IOC name matching for common attacker tools.",
     usage: `runscript -CloudFile="artefact-collection/prefetch-dump.ps1"`,
     source: `<#
@@ -491,6 +497,7 @@ Write-Output "===== END PREFETCH DUMP ====="
     shortDesc:  "Chrome, Edge, Firefox history from all profiles",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1217","T1083"],
     description: "Extracts recent browsing history from Chrome, Edge, and Firefox across all user profiles. Useful for finding initial access vectors (phishing links clicked) and identifying C2 domains visited by malware.",
     params: [
       { name: "DaysBack", type: "number", placeholder: "7", hint: "How many days of history to retrieve (default: 7)", required: false }
@@ -584,6 +591,7 @@ Write-Output "===== END BROWSER HISTORY ====="
     shortDesc:  "Kill process by PID/name — captures evidence first",
     irPhase:    "Containment",
     permission: "Active Responder",
+    mitre:      ["T1489"],
     description: "Terminates a process but first captures its path, command line, parent, and SHA256 hash. Supports -DryRun to preview what would be killed. Always document before you destroy.",
     params: [
       { name: "TargetPID",  type: "number",  placeholder: "e.g. 4832",       hint: "Process ID (takes precedence over name)",     required: false },
@@ -693,6 +701,7 @@ Write-Output "===== END KILL PROCESS ====="
     shortDesc:  "All scheduled tasks with encoded/LOLBin/user-path indicators",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1053.005"],
     description: "Enumerates every scheduled task and flags entries with encoded PowerShell commands, LOLBin usage (mshta, wscript, rundll32), tasks running from user-writable paths, or tasks with no author. Adversaries frequently use scheduled tasks for persistence and lateral movement.",
     usage: `runscript -CloudFile="persistence/scheduled-tasks.ps1"`,
     source: `<#
@@ -781,6 +790,7 @@ Write-Output "===== END SCHEDULED TASKS ====="
     shortDesc:  "Run keys, startup folders, IFEO, and autostart services",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1547.001","T1543.003"],
     description: "Checks all common autorun locations: HKLM/HKCU Run and RunOnce keys, per-user and all-users startup folders, Image File Execution Options (debugger hijacking), and auto-start services pointing to unusual paths. Covers the most common Windows persistence mechanisms.",
     usage: `runscript -CloudFile="persistence/startup-entries.ps1"`,
     source: `<#
@@ -881,6 +891,7 @@ Write-Output "===== END STARTUP ENTRIES ====="
     shortDesc:  "WMI event filters, consumers, and bindings",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1546.003"],
     description: "Enumerates all WMI permanent event subscriptions (filters, consumers, and filter-to-consumer bindings). WMI persistence is fileless, survives reboots, and is commonly missed by AV. Any non-Microsoft or unlabelled subscription should be investigated immediately.",
     usage: `runscript -CloudFile="persistence/wmi-subscriptions.ps1"`,
     source: `<#
@@ -959,6 +970,7 @@ Write-Output "===== END WMI SUBSCRIPTIONS ====="
     shortDesc:  "Active SMB sessions, open files, and shares",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1021.002","T1135"],
     description: "Enumerates inbound SMB sessions to this host, currently open files via SMB, and all SMB shares. Useful for detecting lateral movement via pass-the-hash, PsExec-style execution, and identifying what an attacker is accessing via admin shares.",
     usage: `runscript -CloudFile="lateral-movement/smb-sessions.ps1"`,
     source: `<#
@@ -1064,6 +1076,7 @@ Write-Output "===== END SMB SESSIONS ====="
     shortDesc:  "WinRM status, remote sessions, and PS remoting events",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1021.006","T1059.001"],
     description: "Checks WinRM service state, enumerates active PowerShell remoting sessions, and pulls recent PS remoting events (4103/4104) and WS-Management operational log entries. Helps identify inbound lateral movement via Enter-PSSession, Invoke-Command, or attacker tooling like Evil-WinRM.",
     usage: `runscript -CloudFile="lateral-movement/psremoting-activity.ps1"`,
     source: `<#
@@ -1158,6 +1171,7 @@ Write-Output "===== END PSREMOTING ACTIVITY ====="
     shortDesc:  "LSASS handle access events and memory dump indicators",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1003.001"],
     description: "Looks for indicators of credential theft targeting LSASS: processes with open handles to lsass.exe (via event 4656), recent lsass.dmp files, and known credential dumping tool signatures in running processes and prefetch. The most common first step in any privilege escalation chain.",
     usage: `runscript -CloudFile="credential-indicators/lsass-access.ps1"`,
     source: `<#
@@ -1279,6 +1293,7 @@ Write-Output "===== END LSASS ACCESS ====="
     shortDesc:  "Hunt for SAM copies, NTDS.dit, and credential dump output",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1552","T1552.001"],
     description: "Searches for copies of the SAM registry hive, NTDS.dit, credential dump output files (commonly named passwords.txt, hashes.txt, etc.), and credential vault artefacts outside their expected system locations. A copied SAM or NTDS is definitive proof of offline credential extraction.",
     usage: `runscript -CloudFile="credential-indicators/credential-files.ps1"`,
     source: `<#
@@ -1369,6 +1384,7 @@ Write-Output "===== END CREDENTIAL FILES ====="
     shortDesc:  "Recently created/modified files in sensitive paths",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1083","T1074"],
     description: "Scans key directories (System32, Program Files, ProgramData, user profiles) for files created or modified in the last 24 hours. Malware often writes to system directories to blend in with legitimate files. Sorts by modification time so newest artefacts appear first.",
     params: [
       { name: "HoursBack", type: "number", placeholder: "24", hint: "How many hours back to scan (default: 24)", required: false }
@@ -1435,6 +1451,7 @@ Write-Output "===== END RECENT FILE CHANGES ====="
     shortDesc:  "Large archives and data staging indicators",
     irPhase:    "Identification",
     permission: "Active Responder",
+    mitre:      ["T1560","T1074.001"],
     description: "Hunts for data exfiltration staging indicators: large archive files (.zip, .7z, .rar, .tar) in unusual locations, files with double extensions (malware evasion), unusually large files in temp directories, and clusters of files in staging paths created recently. These patterns frequently precede or follow data theft.",
     usage: `runscript -CloudFile="file-system-iocs/suspicious-archives.ps1"`,
     source: `<#
@@ -1541,6 +1558,7 @@ Write-Output "===== END SUSPICIOUS ARCHIVES ====="
     shortDesc:  "Pre-isolation checklist — GO / CAUTION / NO-GO",
     irPhase:    "Containment",
     permission: "Active Responder",
+    mitre:      ["T1562"],
     description: "Runs a pre-flight checklist before network isolation: checks for DC role, active sessions, critical services, sensor health, and database activity. Returns a clear GO / CAUTION / NO-GO recommendation.",
     usage: `runscript -CloudFile="remediation/isolate-prep-checks.ps1"`,
     source: `<#
@@ -1649,6 +1667,7 @@ Write-Output "===== END ISOLATE PREP ====="
     shortDesc: "Kill process by name or PID, optionally delete binary",
     irPhase: "Eradication",
     permission: "RTR Admin",
+    mitre:      ["T1489","T1070"],
     description: "Locates a process by name or PID, logs full details (binary path, owner, parent PID, start time) before acting, then kills it. Optional -DeleteBinary flag removes the executable from disk. Always confirm the correct target first — use process-investigation scripts to identify PIDs. Destructive if DeleteBinary is set.",
     params: [
       { name: "ProcessName",  type: "string",  placeholder: "malware.exe",  hint: "Process name to kill — kills all matching instances",    required: false },
@@ -1739,6 +1758,7 @@ Write-Output ""; Write-Output "===== END KILL PROCESS ====="
     shortDesc: "Log full task definition then permanently delete it",
     irPhase: "Eradication",
     permission: "RTR Admin",
+    mitre:      ["T1053.005"],
     description: "Finds a scheduled task by name and path, exports the full task XML definition for case documentation, then permanently deletes it with Unregister-ScheduledTask. Verifies deletion afterwards. Run scheduled-tasks.ps1 first to identify the exact task name and path before executing this script.",
     params: [
       { name: "TaskName", type: "string", placeholder: "MicrosoftEdgeUpdate", hint: "Exact task name — use scheduled-tasks.ps1 to find it",         required: true },
@@ -1809,6 +1829,7 @@ Write-Output ""; Write-Output "===== END REMOVE SCHEDULED TASK ====="
     shortDesc: "Stop and delete a malicious Windows service",
     irPhase: "Eradication",
     permission: "RTR Admin",
+    mitre:      ["T1543.003"],
     description: "Finds a service by its sc name (not display name), logs full registry configuration (binary path, account, start type), stops it, and removes it via sc.exe delete. Verifies removal. Optional -DeleteBinary flag removes the service binary from disk. Use suspicious-services.ps1 to identify targets first.",
     params: [
       { name: "ServiceName",  type: "string",  placeholder: "evilsvc",  hint: "Service sc name (not display name) — use suspicious-services.ps1 to find", required: true },
@@ -1882,6 +1903,7 @@ Write-Output ""; Write-Output "===== END REMOVE SERVICE ====="
     shortDesc: "Remove a Run/RunOnce persistence entry from the registry",
     irPhase: "Eradication",
     permission: "RTR Admin",
+    mitre:      ["T1547.001"],
     description: "Displays all current Run/RunOnce entries across HKLM and HKCU (including Wow6432Node variants) for review, then removes the named value. Logs the full value data before deletion for case documentation. Verifies removal afterwards. Run persistence-registry.ps1 first to identify the exact value name.",
     params: [
       { name: "ValueName", type: "string", placeholder: "WindowsUpdate",    hint: "Exact registry value name to remove (case-insensitive match)",  required: true },
@@ -1974,6 +1996,7 @@ Write-Output ""; Write-Output "===== END REMOVE REGISTRY RUN KEY ====="
     shortDesc: "OS version, uptime, users, EDR agents, SIP + FileVault",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1082","T1016"],
     description: "macOS rapid triage snapshot: OS/build version, architecture, last boot, currently logged-on users, local admin group, network interfaces, running EDR agents (Falcon, SentinelOne, Defender), FileVault encryption status, and SIP state.",
     usage: `runscript -CloudFile="macos/triage/host-summary.sh"`,
     source: `#!/bin/bash
@@ -2041,6 +2064,7 @@ echo "===== END HOST SUMMARY ====="
     shortDesc: "TCP/UDP sockets mapped to process via lsof",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1049"],
     description: "Maps every established and listening socket to its owning process using lsof. Also shows DNS config, default routes, ARP cache, and application firewall state. macOS equivalent of netstat -b.",
     usage: `runscript -CloudFile="macos/triage/active-connections.sh"`,
     source: `#!/bin/bash
@@ -2088,6 +2112,7 @@ echo "===== END ACTIVE CONNECTIONS ====="
     shortDesc: "Current sessions, recent logins, failed auth events",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1033","T1087"],
     description: "Shows current interactive sessions (who/w), recent login history, failed authentication events from the unified log, active SSH sessions, and users with valid login shells. Use this before isolating to confirm whether a legitimate user is active.",
     usage: `runscript -CloudFile="macos/triage/logged-on-users.sh"`,
     source: `#!/bin/bash
@@ -2141,6 +2166,7 @@ echo "===== END LOGGED-ON USERS ====="
     shortDesc: "LaunchDaemons, LaunchAgents, login items, cron",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1543.004","T1546"],
     description: "Enumerates all LaunchDaemon and LaunchAgent plists (system and user-level), flags entries not from known Apple/vendor prefixes, checks login items, crontabs, and periodic task scripts. LaunchDaemons are the primary persistence mechanism on macOS — any unknown entry is high priority.",
     usage: `runscript -CloudFile="macos/persistence/launchd-entries.sh"`,
     source: `#!/bin/bash
@@ -2202,6 +2228,7 @@ echo "===== END LAUNCHD PERSISTENCE ====="
     shortDesc: "Recently modified files in LaunchD, tmp, Downloads, local/bin",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1083"],
     description: "Scans LaunchDaemon/Agent directories, /tmp, /usr/local/bin, ~/Downloads, and ~/Desktop for recently created or modified files. Flags executable scripts (.sh, .py, .dylib, .kext). Also hunts for world-writable files and recently modified executables in /usr/local.",
     params: [
       { name: "Hours", type: "number", placeholder: "24", hint: "Hours back to scan (passed as $1, default: 24)", required: false }
@@ -2257,6 +2284,7 @@ echo "===== END RECENT FILE CHANGES ====="
     shortDesc: "Distro, kernel, uptime, users, network, EDR agents",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1082","T1016"],
     description: "Linux rapid triage snapshot: distro/kernel, architecture, hardware info (dmidecode), last boot, current users, privileged accounts (uid 0 + sudo/wheel group), network interfaces, and running EDR agents (Falcon, SentinelOne).",
     usage: `runscript -CloudFile="linux/triage/host-summary.sh"`,
     source: `#!/bin/bash
@@ -2321,6 +2349,7 @@ echo "===== END HOST SUMMARY ====="
     shortDesc: "Sockets with process info via ss/lsof, firewall state",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1049"],
     description: "Maps all established and listening sockets to their owning processes using ss (preferred) or netstat. Shows DNS config, default routes, ARP/neighbour cache, and firewall status (ufw/firewalld/iptables). Linux equivalent of netstat -bntp.",
     usage: `runscript -CloudFile="linux/triage/active-connections.sh"`,
     source: `#!/bin/bash
@@ -2382,6 +2411,7 @@ echo "===== END ACTIVE CONNECTIONS ====="
     shortDesc: "Systemd units from non-standard paths, timers, cron, rc.local",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1543.002"],
     description: "Finds systemd services whose ExecStart binary is not in standard system paths (/usr, /bin, /sbin, /lib). Also lists all enabled services, active timers, custom unit files in /etc/systemd/system, crontabs, rc.local, SysV init scripts not owned by any package, and at jobs.",
     usage: `runscript -CloudFile="linux/persistence/systemd-services.sh"`,
     source: `#!/bin/bash
@@ -2439,6 +2469,361 @@ echo "===== END SYSTEMD PERSISTENCE ====="
 `
   },
 
+  // ══════════════════════════════════════════════════════ macOS — PROCESS INVESTIGATION
+  {
+    id: "macos-process-tree",
+    category: "Process Investigation",
+    os: "macos",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "process-tree.sh",
+    shortDesc: "Full process hierarchy + suspicious parent/child pairs",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    mitre:      ["T1057","T1055","T1036"],
+    description: "Builds a full parent→child process hierarchy on macOS and flags suspicious relationships — browsers or Office apps spawning shells, processes running from /tmp or Downloads, DYLD injection indicators, and hidden (dot-prefixed) executables.",
+    usage: `runscript -CloudFile="macos/process-investigation/process-tree.sh"`,
+    source: `#!/usr/bin/env bash
+# macOS Process Tree - IR Phase: Identification | Permission: Active Responder
+set -uo pipefail
+echo "===== macOS PROCESS TREE ====="
+echo "Host: $(hostname)  Time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+echo "===== FULL PROCESS LIST ====="
+ps -axo pid=,ppid=,user=,stat=,args= | head -150
+echo ""
+
+echo "===== SUSPICIOUS PARENT->CHILD PAIRS ====="
+declare -A CMDMAP
+while IFS= read -r line; do
+  pid=$(echo "$line" | awk '{print $1}')
+  cmd=$(echo "$line" | awk '{for(i=2;i<=NF;i++) printf $i" "; print ""}')
+  CMDMAP[\$pid]="\${cmd:-unknown}"
+done < <(ps -axo pid=,args= 2>/dev/null)
+
+FOUND=0
+while IFS= read -r line; do
+  pid=$(echo "$line" | awk '{print $1}'); ppid=$(echo "$line" | awk '{print $2}')
+  cmd=$(echo "$line" | awk '{for(i=3;i<=NF;i++) printf $i" "; print ""}')
+  parent="\${CMDMAP[\$ppid]:-unknown}"
+  echo "\$cmd" | grep -qiE "bash|zsh|sh|python|curl|wget|osascript" || continue
+  echo "\$parent" | grep -qiE "Safari|firefox|Chrome|Word|Excel|PowerPoint|Outlook|zoom|Slack" || continue
+  echo "  [!] Parent (PID \$ppid): \$parent"; echo "      Child  (PID \$pid):  \$cmd"
+  FOUND=\$((FOUND+1))
+done < <(ps -axo pid=,ppid=,args= 2>/dev/null)
+[ "\$FOUND" -eq 0 ] && echo "  [+] No suspicious pairs detected"
+echo ""
+
+echo "===== PROCESSES IN SUSPICIOUS PATHS ====="
+FOUND2=0
+while IFS= read -r line; do
+  pid=$(echo "$line" | awk '{print $1}'); usr=$(echo "$line" | awk '{print $2}')
+  cmd=$(echo "$line" | awk '{for(i=3;i<=NF;i++) printf $i" "; print ""}')
+  echo "\$cmd" | grep -qE "/tmp/|/var/folders/|Downloads/|Desktop/|/Users/Shared/" || continue
+  echo "  [!] PID \$pid (\$usr): \$cmd"; FOUND2=\$((FOUND2+1))
+done < <(ps -axo pid=,user=,args= 2>/dev/null)
+[ "\$FOUND2" -eq 0 ] && echo "  [+] No processes in suspicious paths"
+echo ""
+
+echo "===== TOP CPU CONSUMERS ====="
+ps -axo pid=,user=,pcpu=,pmem=,args= 2>/dev/null | sort -rn -k3 | head -10
+echo ""
+echo "===== END macOS PROCESS TREE ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ macOS — ARTEFACT COLLECTION
+  {
+    id: "macos-browser-history",
+    category: "Artefact Collection",
+    os: "macos",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "browser-history.sh",
+    shortDesc: "Safari, Chrome, Firefox history + download quarantine log",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    mitre:      ["T1217","T1083"],
+    description: "Extracts recent browsing history (last 7 days) from Safari, Chrome, and Firefox for all user profiles using sqlite3. Also queries the macOS quarantine database for downloaded files — useful for tracing phishing visits, C2 connections, and malware staging URLs.",
+    usage: `runscript -CloudFile="macos/artefact-collection/browser-history.sh"`,
+    source: `#!/usr/bin/env bash
+# macOS Browser History - IR Phase: Identification | Permission: Active Responder
+set -uo pipefail
+DAYS=7
+echo "===== macOS BROWSER HISTORY ====="
+echo "Host: $(hostname)  Time: $(date '+%Y-%m-%d %H:%M:%S')  Window: last \${DAYS} days"
+echo ""
+command -v sqlite3 &>/dev/null || { echo "[ERROR] sqlite3 not found"; exit 1; }
+CUTOFF=\$(date -v "-\${DAYS}d" '+%s' 2>/dev/null || date -d "-\${DAYS} days" '+%s' 2>/dev/null || echo 0)
+
+echo "===== SAFARI ====="
+for USERDIR in /Users/*/; do
+  DB="\${USERDIR}Library/Safari/History.db"; [ -f "\$DB" ] || continue
+  UNAME=\$(basename "\$USERDIR"); echo "  --- User: \$UNAME ---"
+  TMPDB="/tmp/safari_\$\$.db"; cp "\$DB" "\$TMPDB" 2>/dev/null || { echo "  [!] Permission denied"; continue; }
+  CUTOFF_MAC=\$(( CUTOFF - 978307200 ))
+  sqlite3 "\$TMPDB" "SELECT datetime(v.visit_time+978307200,'unixepoch','localtime'),i.url FROM history_visits v JOIN history_items i ON v.history_item=i.id WHERE v.visit_time>=\$CUTOFF_MAC ORDER BY v.visit_time DESC LIMIT 200;" 2>/dev/null | sed 's/^/  /' || echo "  [!] Query failed"
+  rm -f "\$TMPDB"
+done
+echo ""
+
+echo "===== CHROME ====="
+for USERDIR in /Users/*/; do
+  BASE="\${USERDIR}Library/Application Support/Google/Chrome"; [ -d "\$BASE" ] || continue
+  for PROFILE in "\$BASE"/*/; do
+    DB="\${PROFILE}History"; [ -f "\$DB" ] || continue
+    UNAME=\$(basename "\$USERDIR"); PNAME=\$(basename "\$PROFILE"); echo "  --- User: \$UNAME / \$PNAME ---"
+    TMPDB="/tmp/chrome_\$\$.db"; cp "\$DB" "\$TMPDB" 2>/dev/null || { echo "  [!] Permission denied"; continue; }
+    CUTOFF_WK=\$(( (CUTOFF+11644473600)*1000000 ))
+    sqlite3 "\$TMPDB" "SELECT datetime((last_visit_time/1000000)-11644473600,'unixepoch','localtime'),url,title FROM urls WHERE last_visit_time>=\$CUTOFF_WK ORDER BY last_visit_time DESC LIMIT 200;" 2>/dev/null | sed 's/^/  /' || echo "  [!] Query failed"
+    rm -f "\$TMPDB"
+  done
+done
+echo ""
+
+echo "===== FIREFOX ====="
+for USERDIR in /Users/*/; do
+  BASE="\${USERDIR}Library/Application Support/Firefox/Profiles"; [ -d "\$BASE" ] || continue
+  for PROFILE in "\$BASE"/*/; do
+    DB="\${PROFILE}places.sqlite"; [ -f "\$DB" ] || continue
+    UNAME=\$(basename "\$USERDIR"); PNAME=\$(basename "\$PROFILE"); echo "  --- User: \$UNAME / \$PNAME ---"
+    TMPDB="/tmp/ff_\$\$.db"; cp "\$DB" "\$TMPDB" 2>/dev/null || { echo "  [!] Permission denied"; continue; }
+    CUTOFF_FF=\$(( CUTOFF*1000000 ))
+    sqlite3 "\$TMPDB" "SELECT datetime(v.visit_date/1000000,'unixepoch','localtime'),p.url,p.title FROM moz_historyvisits v JOIN moz_places p ON v.place_id=p.id WHERE v.visit_date>=\$CUTOFF_FF ORDER BY v.visit_date DESC LIMIT 200;" 2>/dev/null | sed 's/^/  /' || echo "  [!] Query failed"
+    rm -f "\$TMPDB"
+  done
+done
+echo ""
+
+echo "===== QUARANTINE DOWNLOAD LOG ====="
+for QFILE in /Users/*/Library/Preferences/com.apple.LaunchServices.QuarantineEventsV2; do
+  [ -f "\$QFILE" ] || continue
+  QU=\$(echo "\$QFILE" | awk -F'/' '{print \$3}'); echo "  --- User: \$QU ---"
+  TMPQDB="/tmp/quarantine_\$\$.db"; cp "\$QFILE" "\$TMPQDB" 2>/dev/null || continue
+  CUTOFF_MAC=\$(( CUTOFF - 978307200 ))
+  sqlite3 "\$TMPQDB" "SELECT datetime(LSQuarantineTimeStamp+978307200,'unixepoch','localtime'),LSQuarantineDataURLString,LSQuarantineAgentName FROM LSQuarantineEvent WHERE LSQuarantineTimeStamp>=\$CUTOFF_MAC ORDER BY LSQuarantineTimeStamp DESC LIMIT 100;" 2>/dev/null | sed 's/^/  /' || true
+  rm -f "\$TMPQDB"
+done
+echo ""; echo "===== END macOS BROWSER HISTORY ====="
+`
+  },
+
+  {
+    id: "macos-unsigned-binaries",
+    category: "Process Investigation",
+    os: "macos",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "unsigned-binaries.sh",
+    shortDesc: "Unsigned, ad-hoc signed, and Gatekeeper-failed processes",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    mitre:      ["T1036","T1055","T1574"],
+    description: "Checks code signatures of all running process binaries using codesign and spctl. Flags unsigned binaries, ad-hoc signed executables, Gatekeeper-rejected apps, processes in staging paths (Downloads/Desktop/tmp), and dot-prefixed hidden executables.",
+    usage: `runscript -CloudFile="macos/process-investigation/unsigned-binaries.sh"`,
+    source: `#!/usr/bin/env bash
+# macOS Unsigned Binaries - IR Phase: Identification | Permission: Active Responder
+set -uo pipefail
+echo "===== macOS UNSIGNED / SUSPICIOUS BINARIES ====="
+echo "Host: $(hostname)  Time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+declare -A CHECKED
+UNSIGNED=0; ADHOC=0; RISKY=0
+
+while IFS= read -r line; do
+  pid=\$(echo "\$line" | awk '{print \$1}'); usr=\$(echo "\$line" | awk '{print \$2}')
+  bin=\$(echo "\$line" | awk '{print \$3}')
+  [ -z "\$bin" ] && continue
+  echo "\$bin" | grep -qE '^(\?|kernel_task)' && continue
+  [ "\${CHECKED[\$bin]+_}" ] && continue; CHECKED["\$bin"]=1
+  REAL=\$(realpath "\$bin" 2>/dev/null || echo "\$bin")
+  SIG=\$(codesign -dv "\$REAL" 2>&1 || true)
+  IS_U=false; IS_A=false; PR=""
+  echo "\$SIG" | grep -q 'code object is not signed' && IS_U=true && UNSIGNED=\$((UNSIGNED+1))
+  echo "\$SIG" | grep -qi 'adhoc' && [ "\$IS_U" = "false" ] && IS_A=true && ADHOC=\$((ADHOC+1))
+  echo "\$REAL" | grep -qE '/tmp/|/var/folders/|Downloads/|Desktop/|/Users/Shared/' && PR=" [HIGH-RISK PATH]" && RISKY=\$((RISKY+1))
+  \$IS_U || \$IS_A || [ -n "\$PR" ] || continue
+  ST="[SIGNED]"; \$IS_U && ST="[UNSIGNED]"; \$IS_A && ST="[AD-HOC]"
+  echo "  \$ST\$PR  PID=\$pid user=\$usr"; echo "    Binary: \$REAL"
+  AUTHORITY=\$(echo "\$SIG" | grep 'Authority=' | head -1)
+  [ -n "\$AUTHORITY" ] && echo "    Signer: \$AUTHORITY"
+  echo "\$REAL" | grep -qE '^/System/|^/usr/bin/|^/bin/' || spctl --assess --verbose=4 "\$REAL" 2>&1 | head -1 | sed 's/^/    GK: /'
+  echo ""
+done < <(ps -axo pid=,user=,comm= 2>/dev/null)
+
+echo "===== SUMMARY ====="
+echo "  Unsigned: \$UNSIGNED  Ad-hoc: \$ADHOC  High-risk path: \$RISKY"
+echo ""
+echo "===== HIDDEN EXECUTABLES ====="
+HIDDEN=0
+while IFS= read -r line; do
+  pid=\$(echo "\$line" | awk '{print \$1}'); cmd=\$(echo "\$line" | awk '{print \$2}')
+  \$(basename "\$cmd" 2>/dev/null | grep -q '^\.') && echo "  [!] PID \$pid: \$cmd" && HIDDEN=\$((HIDDEN+1))
+done < <(ps -axo pid=,comm= 2>/dev/null)
+[ "\$HIDDEN" -eq 0 ] && echo "  [+] No hidden executables running"
+echo ""; echo "===== END macOS UNSIGNED / SUSPICIOUS BINARIES ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ Linux — PROCESS INVESTIGATION
+  {
+    id: "linux-process-tree",
+    category: "Process Investigation",
+    os: "linux",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "process-tree.sh",
+    shortDesc: "Process hierarchy, deleted-binary processes, /tmp execution",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    mitre:      ["T1057","T1055","T1036"],
+    description: "Builds a full Linux process tree and identifies attacker techniques: web servers spawning shells (webshell indicator), processes running from deleted binaries (fileless execution), memfd/shm execution, processes in /tmp or /dev/shm, and high CPU/memory outliers.",
+    usage: `runscript -CloudFile="linux/process-investigation/process-tree.sh"`,
+    source: `#!/usr/bin/env bash
+# Linux Process Tree - IR Phase: Identification | Permission: Active Responder
+set -uo pipefail
+echo "===== LINUX PROCESS TREE ====="
+echo "Host: $(hostname)  Time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+command -v pstree &>/dev/null && { echo "===== PSTREE ====="; pstree -p -u -l 2>/dev/null | head -100; echo ""; }
+
+echo "===== FULL PROCESS LIST ====="
+ps -eo pid=,ppid=,user=,stat=,cmd= --sort=ppid 2>/dev/null | head -150
+echo ""
+
+echo "===== SUSPICIOUS PARENT->CHILD PAIRS ====="
+declare -A CMDMAP
+while IFS= read -r line; do
+  pid=\$(echo "\$line" | awk '{print \$1}'); cmd=\$(echo "\$line" | awk '{for(i=2;i<=NF;i++) printf \$i" "; print ""}')
+  CMDMAP["\$pid"]="\${cmd:-unknown}"
+done < <(ps -eo pid=,cmd= 2>/dev/null)
+FOUND=0
+while IFS= read -r line; do
+  pid=\$(echo "\$line" | awk '{print \$1}'); ppid=\$(echo "\$line" | awk '{print \$2}')
+  cmd=\$(echo "\$line" | awk '{for(i=3;i<=NF;i++) printf \$i" "; print ""}')
+  parent="\${CMDMAP[\$ppid]:-unknown}"
+  echo "\$cmd" | grep -qiE "(^|/)(bash|zsh|sh|python[23]?|perl|nc|curl|wget|socat)( |\$)" || continue
+  echo "\$parent" | grep -qiE "(^|/)(nginx|apache2|httpd|php-fpm|mysql|postgres|node|java|tomcat)" || continue
+  echo "  [!] Parent (PID \$ppid): \$parent"; echo "      Child  (PID \$pid):  \$cmd"; FOUND=\$((FOUND+1))
+done < <(ps -eo pid=,ppid=,cmd= 2>/dev/null | tail -n +2)
+[ "\$FOUND" -eq 0 ] && echo "  [+] No suspicious pairs detected"
+echo ""
+
+echo "===== PROCESSES WITH DELETED BINARIES ====="
+FOUND2=0
+for pid in /proc/[0-9]*/; do
+  PIDNUM=\$(basename "\$pid")
+  EXE="\${pid}exe"; [ -L "\$EXE" ] || continue
+  TARGET=\$(readlink "\$EXE" 2>/dev/null || true)
+  echo "\$TARGET" | grep -qE '(deleted)|^/memfd:|^/dev/shm/' || continue
+  CMD=\$(tr '\0' ' ' < "\${pid}cmdline" 2>/dev/null | head -c 200 || true)
+  USR=\$(stat -c '%U' "\$pid" 2>/dev/null || true)
+  echo "  [!] PID \$PIDNUM (\$USR) — \$TARGET"; echo "      Cmdline: \$CMD"; FOUND2=\$((FOUND2+1))
+done 2>/dev/null
+[ "\$FOUND2" -eq 0 ] && echo "  [+] No deleted-binary processes"
+echo ""
+
+echo "===== PROCESSES IN /tmp / /dev/shm ====="
+FOUND3=0
+for pid in /proc/[0-9]*/; do
+  PIDNUM=\$(basename "\$pid"); EXE="\${pid}exe"; [ -L "\$EXE" ] || continue
+  TARGET=\$(readlink "\$EXE" 2>/dev/null || true)
+  echo "\$TARGET" | grep -qE '^/tmp/|^/var/tmp/|^/dev/shm/' || continue
+  CMD=\$(tr '\0' ' ' < "\${pid}cmdline" 2>/dev/null | head -c 200 || true)
+  USR=\$(stat -c '%U' "\$pid" 2>/dev/null || true)
+  echo "  [!] PID \$PIDNUM (\$USR): \$TARGET — \$CMD"; FOUND3=\$((FOUND3+1))
+done 2>/dev/null
+[ "\$FOUND3" -eq 0 ] && echo "  [+] No processes in suspicious paths"
+echo ""
+
+echo "===== TOP CPU / MEMORY ====="
+echo "  -- CPU --"; ps -eo pid=,user=,pcpu=,pmem=,cmd= --sort=-pcpu 2>/dev/null | head -10
+echo "  -- MEM --"; ps -eo pid=,user=,pcpu=,pmem=,cmd= --sort=-pmem 2>/dev/null | head -10
+echo ""; echo "===== END LINUX PROCESS TREE ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ Linux — CREDENTIAL INDICATORS
+  {
+    id: "linux-credential-files",
+    category: "Credential Indicators",
+    os: "linux",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "credential-files.sh",
+    shortDesc: "passwd/shadow changes, SSH keys, shell history creds, SUID binaries",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    mitre:      ["T1003","T1552","T1078"],
+    description: "Identifies credential access indicators on Linux: recent modifications to /etc/passwd, /etc/shadow, and sudoers; UID-0 backdoor accounts; SSH authorized_keys anomalies; credential keywords in shell history; unusual SUID/SGID binaries; processes accessing /proc/*/mem (credential scraping); and browser credential stores.",
+    usage: `runscript -CloudFile="linux/credential-indicators/credential-files.sh"`,
+    source: `#!/usr/bin/env bash
+# Linux Credential Indicators - IR Phase: Identification | Permission: Active Responder
+set -uo pipefail
+echo "===== LINUX CREDENTIAL INDICATORS ====="
+echo "Host: $(hostname)  Time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+echo "===== /etc/passwd / shadow / sudoers STATUS ====="
+for f in /etc/passwd /etc/shadow /etc/sudoers; do
+  [ -f "\$f" ] || continue
+  MOD=\$(stat -c '%y' "\$f" 2>/dev/null || echo "unknown")
+  PERM=\$(stat -c '%A %U:%G' "\$f" 2>/dev/null || echo "unknown")
+  echo "  \$f — modified: \$MOD  perms: \$PERM"
+done
+echo ""
+
+echo "  --- UID 0 accounts (should be only root) ---"
+awk -F: '\$3==0 {print "  [!] UID 0: "\$1" shell="\$7}' /etc/passwd 2>/dev/null || true
+echo ""
+echo "  --- Accounts with login shells ---"
+awk -F: '\$7 !~ /nologin|false|sync/ && \$1 != "#" {print "  "\$1" ("\$7")"}' /etc/passwd 2>/dev/null || true
+echo ""
+
+echo "===== SSH authorized_keys ====="
+find /root /home -name 'authorized_keys' 2>/dev/null | while read -r akf; do
+  OWNER=\$(stat -c '%U' "\$akf" 2>/dev/null || true); MOD=\$(stat -c '%y' "\$akf" 2>/dev/null || true)
+  COUNT=\$(wc -l < "\$akf" 2>/dev/null || echo "?")
+  echo "  \$akf (owner: \$OWNER, modified: \$MOD, keys: \$COUNT)"
+  grep -v '^#' "\$akf" 2>/dev/null | while read -r key; do
+    [ -z "\$key" ] && continue
+    TYPE=\$(echo "\$key" | awk '{print \$1}'); COMMENT=\$(echo "\$key" | awk '{print \$3}')
+    echo "    Key: \$TYPE  Comment: \$COMMENT"
+  done
+done || echo "  No authorized_keys found"
+echo ""
+
+echo "===== SHELL HISTORY — CREDENTIAL KEYWORDS ====="
+for HISTFILE in /root/.bash_history /home/*/.bash_history /root/.zsh_history /home/*/.zsh_history; do
+  [ -f "\$HISTFILE" ] || continue
+  OWNER=\$(stat -c '%U' "\$HISTFILE" 2>/dev/null || true)
+  MATCHES=\$(grep -inE "password|passwd|secret|token|api_key|Authorization|Bearer|--password|-p " "\$HISTFILE" 2>/dev/null | tail -20 || true)
+  [ -n "\$MATCHES" ] && echo "  [!] \$HISTFILE (owner: \$OWNER):" && echo "\$MATCHES" | sed 's/^/    /'
+done || true
+echo "  [i] History scan complete"
+echo ""
+
+echo "===== UNUSUAL SUID BINARIES ====="
+KNOWN="ping|ping6|sudo|su|passwd|newgrp|chfn|chsh|mount|umount|pkexec|ssh-agent|at|crontab|gpasswd|traceroute|write|wall|chage|expiry|dbus-daemon-launch-helper"
+find / -xdev -perm -4000 -type f 2>/dev/null | while read -r f; do
+  BASE=\$(basename "\$f")
+  echo "\$BASE" | grep -qiE "^(\$KNOWN)\$" && continue
+  OWNER=\$(stat -c '%U:%G' "\$f" 2>/dev/null || true); MOD=\$(stat -c '%y' "\$f" 2>/dev/null || true)
+  echo "  [!] Unusual SUID: \$f (owner: \$OWNER)"
+done
+echo ""
+
+echo "===== PROCESSES READING /proc/*/mem (CREDENTIAL SCRAPING) ====="
+MEM_FOUND=0
+for pid in /proc/[0-9]*/fd/; do
+  PIDNUM=\$(echo "\$pid" | grep -o '[0-9]*' | head -1)
+  ls -la "\$pid" 2>/dev/null | grep -q '/proc/.*/mem' || continue
+  CMD=\$(tr '\0' ' ' < "/proc/\$PIDNUM/cmdline" 2>/dev/null | head -c 200 || true)
+  USR=\$(stat -c '%U' "/proc/\$PIDNUM" 2>/dev/null || true)
+  echo "  [!] PID \$PIDNUM (\$USR): \$CMD"; MEM_FOUND=\$((MEM_FOUND+1))
+done 2>/dev/null
+[ "\$MEM_FOUND" -eq 0 ] && echo "  [+] No credential-scraping process memory access detected"
+echo ""; echo "===== END LINUX CREDENTIAL INDICATORS ====="
+`
+  },
+
   // ══════════════════════════════════════════════════════ Linux — FILE SYSTEM IOCs
   {
     id: "linux-recent-file-changes",
@@ -2449,6 +2834,7 @@ echo "===== END SYSTEMD PERSISTENCE ====="
     shortDesc: "Modified files in /tmp, /etc, systemd paths, /usr/local, home dirs",
     irPhase: "Identification",
     permission: "Active Responder",
+    mitre:      ["T1083"],
     description: "Scans /tmp, /var/tmp, /dev/shm, /etc, systemd unit paths, /usr/local, and home directories for recently modified files. Flags setuid/setgid binaries changed recently (privilege escalation indicator) and modifications to /etc/passwd, /etc/shadow, and sudoers.",
     params: [
       { name: "Hours", type: "number", placeholder: "24", hint: "Hours back to scan (passed as $1, default: 24)", required: false }
