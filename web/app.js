@@ -1,37 +1,48 @@
 /**
- * app.js — RTR Script Lab
+ * app.js — RTR Labs
  *
- * Wires together:
- *  • Sidebar script browser (search + phase filter)
- *  • Monaco editor (PowerShell syntax, dark theme)
- *  • Info panel (metadata, usage, checklist)
- *  • Header actions (copy, download, reset)
+ * Features:
+ *  • Monaco editor with PowerShell syntax + custom theme
+ *  • Sidebar with live search + IR phase filter
+ *  • URL hash routing (bookmarkable/shareable scripts)
+ *  • Smooth fade transition on script switch
+ *  • Parameter injection UI → generates RTR runscript command
+ *  • IR Workflow modal (phase-organised script browser)
+ *  • Export all scripts as structured .zip
+ *  • New script template generator
+ *  • Per-script page title + share link
  */
 
-/* ═══════════════════════════════════════════════════════ STATE ══════════ */
-let editor       = null;   // Monaco editor instance
-let currentScript = null;  // Currently loaded script object
-let originalSrc   = "";    // Original source (for reset + dirty detection)
-let activeFilter  = "all"; // Current IR phase filter
-
-/* ═══════════════════════════════════════════════════════ SIDEBAR ════════ */
+/* ═══════════════════════════════════ STATE ══════════════════════════════ */
+let editor        = null;
+let currentScript = null;
+let originalSrc   = "";
+let activeFilter  = "all";
+let paramValues   = {};   // current values for the param form
 
 const CATEGORIES = ["Triage", "Process Investigation", "Artefact Collection", "Remediation"];
 
+/* ═══════════════════════════════════ SIDEBAR ════════════════════════════ */
+
 function renderSidebar(filter = "all", query = "") {
   const nav = document.getElementById("script-nav");
+  const q   = query.toLowerCase().trim();
   nav.innerHTML = "";
-  const q = query.toLowerCase();
+  let total = 0;
 
   CATEGORIES.forEach(cat => {
     const scripts = window.RTR_SCRIPTS.filter(s => {
       const matchesCat   = s.category === cat;
       const matchesPhase = filter === "all" || s.irPhase.includes(filter);
-      const matchesQuery = !q || s.name.toLowerCase().includes(q) || s.shortDesc.toLowerCase().includes(q);
+      const matchesQuery = !q ||
+        s.name.toLowerCase().includes(q) ||
+        s.shortDesc.toLowerCase().includes(q) ||
+        s.category.toLowerCase().includes(q);
       return matchesCat && matchesPhase && matchesQuery;
     });
 
     if (scripts.length === 0) return;
+    total += scripts.length;
 
     const label = document.createElement("div");
     label.className = "nav-group-label";
@@ -42,29 +53,46 @@ function renderSidebar(filter = "all", query = "") {
       const item = document.createElement("div");
       item.className = "nav-item" + (currentScript?.id === s.id ? " active" : "");
       item.dataset.id = s.id;
-
-      // Phase indicator dot — multi-phase scripts get the blended style
       const phases = s.irPhase.split(" / ").map(p => p.trim());
       const phaseClass = phases.length > 1 ? "phase-multi" : `phase-${phases[0]}`;
-
       item.innerHTML = `
         <div class="nav-item-icon ${phaseClass}"></div>
         <div class="nav-item-body">
           <div class="nav-item-name">${s.name}</div>
           <div class="nav-item-desc">${s.shortDesc}</div>
-        </div>
-      `;
-      item.addEventListener("click", () => loadScript(s));
+        </div>`;
+      item.addEventListener("click", () => loadScriptWithTransition(s));
       nav.appendChild(item);
     });
   });
+
+  if (total === 0) {
+    nav.innerHTML = `<div class="nav-empty">No scripts match "${query}"</div>`;
+  }
+
+  const countEl = document.getElementById("script-count");
+  if (countEl) {
+    countEl.textContent = total === window.RTR_SCRIPTS.length
+      ? `${total} scripts`
+      : `${total} of ${window.RTR_SCRIPTS.length} scripts`;
+  }
 }
 
-/* ═══════════════════════════════════════════════════════ LOAD SCRIPT ════ */
+/* ═══════════════════════════════════ LOAD SCRIPT ════════════════════════ */
+
+function loadScriptWithTransition(script) {
+  const container = document.getElementById("editor-container");
+  container.classList.add("fading");
+  setTimeout(() => {
+    loadScript(script);
+    container.classList.remove("fading");
+  }, 120);
+}
 
 function loadScript(script) {
   currentScript = script;
   originalSrc   = script.source;
+  paramValues   = buildDefaultParams(script);
 
   if (editor) {
     editor.setValue(script.source);
@@ -72,180 +100,385 @@ function loadScript(script) {
     editor.revealLine(1);
   }
 
+  // URL hash routing — makes scripts bookmarkable
+  history.replaceState(null, "", `#${script.id}`);
+
+  // Page title
+  document.title = `${script.name} — RTR Labs`;
+
   updateMetaBar(script);
   updateInfoPanel(script);
   updateStatusBar(false);
   renderSidebar(activeFilter, document.getElementById("search-input").value);
 }
 
+function buildDefaultParams(script) {
+  const defaults = {};
+  if (!script.params) return defaults;
+  script.params.forEach(p => {
+    if (p.type === "boolean") defaults[p.name] = p.default ?? false;
+    else defaults[p.name] = "";
+  });
+  return defaults;
+}
+
+/* ═══════════════════════════════════ META BAR ═══════════════════════════ */
+
 function updateMetaBar(script) {
-  document.getElementById("meta-title").textContent = `${script.category.toLowerCase().replace(/ /g, "-")}/${script.name}`;
+  const titleEl = document.getElementById("meta-title");
+  titleEl.textContent = `${script.category.toLowerCase().replace(/ /g, "-")}/${script.name}`;
+  titleEl.classList.add("has-script");
 
-  const phases = script.irPhase.split(" / ").map(p => p.trim());
+  const phases   = script.irPhase.split(" / ").map(p => p.trim());
   const phaseTags = phases.map(p => `<span class="tag tag-phase-${p}">${p}</span>`).join("");
-  const permTag = `<span class="tag tag-perm-${script.permission.includes("Admin") ? "Admin" : "AR"}">${script.permission}</span>`;
-
+  const permTag   = `<span class="tag tag-perm-${script.permission.includes("Admin") ? "Admin" : "AR"}">${script.permission}</span>`;
   document.getElementById("meta-tags").innerHTML = phaseTags + permTag;
 }
+
+/* ═══════════════════════════════════ INFO PANEL ═════════════════════════ */
 
 function updateInfoPanel(script) {
   document.getElementById("info-description").textContent = script.description;
   document.getElementById("info-usage").textContent = script.usage;
-
-  // Reset checklist when switching scripts
   document.querySelectorAll(".checklist input[type='checkbox']").forEach(cb => { cb.checked = false; });
+
+  const paramSection = document.getElementById("param-section");
+  if (script.params && script.params.length > 0) {
+    paramSection.style.display = "";
+    renderParamForm(script);
+  } else {
+    paramSection.style.display = "none";
+  }
 }
 
-/* ═══════════════════════════════════════════════════════ STATUS BAR ═════ */
+/* ═══════════════════════════════════ PARAM FORM ═════════════════════════ */
+
+function renderParamForm(script) {
+  const form = document.getElementById("param-form");
+  form.innerHTML = "";
+
+  script.params.forEach(p => {
+    const field = document.createElement("div");
+    field.className = "param-field";
+
+    const label = document.createElement("label");
+    label.className = "param-label";
+    label.innerHTML = `<span>-${p.name}</span><span class="param-type-badge">${p.type}</span>`;
+
+    let input;
+
+    if (p.type === "boolean") {
+      input = document.createElement("div");
+      input.className = "param-toggle";
+      const trueBtn  = document.createElement("button");
+      const falseBtn = document.createElement("button");
+      trueBtn.type  = "button";
+      falseBtn.type = "button";
+      trueBtn.className  = "param-toggle-btn" + (paramValues[p.name] === true  ? " selected-true"  : "");
+      falseBtn.className = "param-toggle-btn" + (paramValues[p.name] === false ? " selected-false" : "");
+      trueBtn.textContent  = "$true";
+      falseBtn.textContent = "$false";
+      trueBtn.addEventListener("click", () => {
+        paramValues[p.name] = true;
+        trueBtn.className  = "param-toggle-btn selected-true";
+        falseBtn.className = "param-toggle-btn";
+        updateGeneratedCommand(script);
+      });
+      falseBtn.addEventListener("click", () => {
+        paramValues[p.name] = false;
+        trueBtn.className  = "param-toggle-btn";
+        falseBtn.className = "param-toggle-btn selected-false";
+        updateGeneratedCommand(script);
+      });
+      input.appendChild(trueBtn);
+      input.appendChild(falseBtn);
+    } else {
+      input = document.createElement("input");
+      input.className   = "param-input";
+      input.type        = "text";
+      input.placeholder = p.placeholder || "";
+      input.value       = paramValues[p.name] || "";
+      input.addEventListener("input", e => {
+        paramValues[p.name] = e.target.value;
+        updateGeneratedCommand(script);
+      });
+    }
+
+    const hint = document.createElement("div");
+    hint.className   = "param-hint";
+    hint.textContent = p.hint || "";
+
+    field.appendChild(label);
+    field.appendChild(input);
+    if (p.hint) field.appendChild(hint);
+    form.appendChild(field);
+  });
+
+  updateGeneratedCommand(script);
+}
+
+function updateGeneratedCommand(script) {
+  const parts = [];
+
+  script.params.forEach(p => {
+    const val = paramValues[p.name];
+    if (val === "" || val === null || val === undefined) return;
+
+    if (p.type === "boolean") {
+      parts.push(`-${p.name} $${val}`);
+    } else if (p.type === "number") {
+      if (val !== "") parts.push(`-${p.name} ${val}`);
+    } else {
+      // Wrap strings in single quotes
+      const safe = String(val).replace(/'/g, "''");
+      if (safe !== "") parts.push(`-${p.name} '${safe}'`);
+    }
+  });
+
+  const categoryPath = script.category.toLowerCase().replace(/ /g, "-");
+  const cloudFile    = `${categoryPath}/${script.name}`;
+  let   cmd;
+
+  if (parts.length > 0) {
+    cmd = `runscript -CloudFile="${cloudFile}" \\\n  -CommandLine="${parts.join(" ")}"`;
+  } else {
+    cmd = `runscript -CloudFile="${cloudFile}"`;
+  }
+
+  document.getElementById("param-cmd").textContent = cmd;
+}
+
+document.getElementById("btn-copy-cmd").addEventListener("click", () => {
+  const cmd = document.getElementById("param-cmd").textContent;
+  copyToClipboard(cmd);
+  showToast("Command copied to clipboard");
+});
+
+/* ═══════════════════════════════════ STATUS BAR ═════════════════════════ */
 
 function updateStatusBar(isDirty) {
   const chip = document.getElementById("status-modified");
   chip.textContent = isDirty ? "Modified" : "Unmodified";
-  chip.className = "status-chip " + (isDirty ? "status-dirty" : "status-clean");
+  chip.className   = "status-chip " + (isDirty ? "status-dirty" : "status-clean");
 }
 
-function setStatusMsg(msg, durationMs = 2500) {
+function setStatusMsg(msg, ms = 2500) {
   const el = document.getElementById("status-msg");
   el.textContent = msg;
-  clearTimeout(el._timeout);
-  el._timeout = setTimeout(() => { el.textContent = ""; }, durationMs);
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.textContent = ""; }, ms);
 }
 
-/* ═══════════════════════════════════════════════════════ MONACO ═════════ */
+/* ═══════════════════════════════════ WORKFLOW MODAL ═════════════════════ */
 
-function initMonaco() {
-  require.config({
-    paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs" }
+const WORKFLOW_PHASES = [
+  {
+    key: "Identification",
+    label: "Identification",
+    cssClass: "phase-id",
+  },
+  {
+    key: "Containment",
+    label: "Containment",
+    cssClass: "phase-contain",
+  },
+  {
+    key: "Eradication",
+    label: "Eradication",
+    cssClass: "phase-erad",
+  },
+];
+
+function openWorkflowModal() {
+  const cols = document.getElementById("workflow-columns");
+  cols.innerHTML = "";
+
+  WORKFLOW_PHASES.forEach(phase => {
+    const col = document.createElement("div");
+    col.className = "workflow-phase";
+
+    const header = document.createElement("div");
+    header.className = `workflow-phase-header ${phase.cssClass}`;
+    header.innerHTML = `
+      <div class="workflow-phase-dot"></div>
+      <span class="workflow-phase-name">${phase.label}</span>`;
+    col.appendChild(header);
+
+    const scripts = window.RTR_SCRIPTS.filter(s => s.irPhase.includes(phase.key));
+    scripts.forEach(s => {
+      const card = document.createElement("div");
+      card.className = "workflow-script-card" + (currentScript?.id === s.id ? " active" : "");
+      card.innerHTML = `
+        <div class="workflow-card-name">${s.name}</div>
+        <div class="workflow-card-desc">${s.shortDesc}</div>
+        <span class="workflow-card-perm">${s.permission}</span>`;
+      card.addEventListener("click", () => {
+        closeWorkflowModal();
+        loadScriptWithTransition(s);
+      });
+      col.appendChild(card);
+    });
+
+    cols.appendChild(col);
   });
 
-  require(["vs/editor/editor.main"], () => {
-    // Custom dark theme to match our UI
-    monaco.editor.defineTheme("rtr-dark", {
-      base: "vs-dark",
-      inherit: true,
-      rules: [
-        { token: "comment",           foreground: "6a7390", fontStyle: "italic" },
-        { token: "keyword",           foreground: "c792ea" },
-        { token: "string",            foreground: "c3e88d" },
-        { token: "number",            foreground: "f78c6c" },
-        { token: "variable",          foreground: "82aaff" },
-        { token: "type",              foreground: "ffcb6b" },
-        { token: "delimiter.bracket", foreground: "89ddff" },
-      ],
-      colors: {
-        "editor.background":           "#15171a",
-        "editor.foreground":           "#e8eaf0",
-        "editor.lineHighlightBackground": "#1c1f24",
-        "editorLineNumber.foreground": "#3a3d47",
-        "editorLineNumber.activeForeground": "#6a7390",
-        "editor.selectionBackground":  "#1e3a5f",
-        "editorCursor.foreground":     "#e8002d",
-        "editor.findMatchBackground":  "#e8002d44",
-        "editorGutter.background":     "#15171a",
-        "scrollbarSlider.background":  "#2a2d3566",
-        "scrollbarSlider.hoverBackground": "#3a3d4799",
-      }
-    });
+  document.getElementById("workflow-modal").classList.add("open");
+  document.getElementById("workflow-modal").setAttribute("aria-hidden", "false");
+}
 
-    editor = monaco.editor.create(document.getElementById("editor-container"), {
-      value: "",
-      language: "powershell",
-      theme: "rtr-dark",
-      fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace',
-      fontSize: 13,
-      lineHeight: 22,
-      tabSize: 4,
-      insertSpaces: true,
-      wordWrap: "off",
-      minimap: { enabled: true, scale: 1 },
-      scrollBeyondLastLine: false,
-      renderWhitespace: "selection",
-      smoothScrolling: true,
-      cursorBlinking: "phase",
-      cursorSmoothCaretAnimation: "on",
-      padding: { top: 16, bottom: 16 },
-      bracketPairColorization: { enabled: true },
-      guides: { bracketPairs: true },
-      suggest: { showKeywords: true },
-      quickSuggestions: true,
-      folding: true,
-      lineNumbers: "on",
-      glyphMargin: false,
-    });
+function closeWorkflowModal() {
+  document.getElementById("workflow-modal").classList.remove("open");
+  document.getElementById("workflow-modal").setAttribute("aria-hidden", "true");
+}
 
-    // Track dirty state
-    editor.onDidChangeModelContent(() => {
-      if (!currentScript) return;
-      const isDirty = editor.getValue() !== originalSrc;
-      updateStatusBar(isDirty);
+document.getElementById("btn-workflow").addEventListener("click", openWorkflowModal);
+document.getElementById("workflow-close").addEventListener("click", closeWorkflowModal);
+document.getElementById("workflow-modal").addEventListener("click", e => {
+  if (e.target === e.currentTarget) closeWorkflowModal();
+});
 
-      // Live line count
-      const lines = editor.getModel()?.getLineCount() ?? 0;
-      document.getElementById("status-lines").textContent = `${lines} lines`;
-    });
+/* ═══════════════════════════════════ NEW SCRIPT TEMPLATE ════════════════ */
 
-    // Resize when window changes
-    window.addEventListener("resize", () => editor.layout());
+const NEW_SCRIPT_TEMPLATE = `<#
+.SYNOPSIS
+    Script Name - One-line description.
 
-    // Show the first script by default
-    if (window.RTR_SCRIPTS.length > 0) {
-      loadScript(window.RTR_SCRIPTS[0]);
-    }
+.DESCRIPTION
+    Detailed description of what this script does and why.
+    Include key indicators it looks for and what output to expect.
 
-    // Remove empty-state placeholder once editor is ready
-    document.getElementById("editor-container").querySelector(".editor-empty")?.remove();
+.IR_PHASE
+    Identification
+    # Options: Identification | Containment | Eradication
+
+.RTR_PERMISSION
+    Active Responder
+    # Options: Active Responder | RTR Admin
+
+.NOTES
+    Safe to run : Yes
+    Disk writes : None
+    Execution   : ~X seconds
+
+.EXAMPLE
+    runscript -CloudFile="category/script-name.ps1"
+#>
+
+# ── Section Heading ───────────────────────────────────────────────────────────
+# Explain WHY this check matters, not just what it does
+Write-Output "===== SCRIPT NAME ====="
+
+# Your code here
+
+Write-Output "===== END SCRIPT NAME ====="
+`;
+
+document.getElementById("btn-new").addEventListener("click", () => {
+  // Unset current script selection
+  currentScript = null;
+  originalSrc   = NEW_SCRIPT_TEMPLATE;
+
+  const titleEl = document.getElementById("meta-title");
+  titleEl.textContent = "new-script.ps1";
+  titleEl.classList.add("has-script");
+  document.getElementById("meta-tags").innerHTML = "";
+  document.getElementById("info-description").textContent = "Edit the template below, then download your script.";
+  document.getElementById("info-usage").textContent = 'runscript -CloudFile="category/new-script.ps1"';
+  document.getElementById("param-section").style.display = "none";
+  document.querySelectorAll(".checklist input[type='checkbox']").forEach(cb => { cb.checked = false; });
+  document.title = "New Script — RTR Labs";
+  history.replaceState(null, "", "#new");
+
+  if (editor) {
+    const container = document.getElementById("editor-container");
+    container.classList.add("fading");
+    setTimeout(() => {
+      editor.setValue(NEW_SCRIPT_TEMPLATE);
+      editor.setScrollPosition({ scrollTop: 0 });
+      editor.revealLine(1);
+      container.classList.remove("fading");
+    }, 120);
+  }
+
+  renderSidebar(activeFilter, document.getElementById("search-input").value);
+  showToast("New script template loaded — edit and download when ready");
+});
+
+/* ═══════════════════════════════════ EXPORT ZIP ═════════════════════════ */
+
+document.getElementById("btn-export-all").addEventListener("click", async () => {
+  if (typeof JSZip === "undefined") {
+    showToast("JSZip not loaded — check your connection");
+    return;
+  }
+
+  const zip = new JSZip();
+
+  // Folder structure mirrors the repo
+  const folderMap = {
+    "Triage":                 "triage",
+    "Process Investigation":  "process-investigation",
+    "Artefact Collection":    "artefact-collection",
+    "Remediation":            "remediation",
+  };
+
+  window.RTR_SCRIPTS.forEach(s => {
+    const folder = folderMap[s.category] || s.category.toLowerCase().replace(/ /g, "-");
+    zip.folder(folder).file(s.name, s.source);
   });
-}
 
-/* ═══════════════════════════════════════════════════════ TOAST ══════════ */
+  // Add a minimal README stub
+  zip.file("README.md", `# RTR Script Collection\nDownloaded from rtrlabs.io\n\nSee https://rtrlabs.io for full documentation.\n`);
 
-function showToast(msg) {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  clearTimeout(t._tid);
-  t._tid = setTimeout(() => t.classList.remove("show"), 2200);
-}
+  const blob = await zip.generateAsync({ type: "blob" });
+  const a    = document.createElement("a");
+  a.href     = URL.createObjectURL(blob);
+  a.download = "rtr-scripts.zip";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`Downloaded ${window.RTR_SCRIPTS.length} scripts as rtr-scripts.zip`);
+});
 
-/* ═══════════════════════════════════════════════════════ HEADER ACTIONS ═ */
+/* ═══════════════════════════════════ HEADER ACTIONS ════════════════════ */
 
 document.getElementById("btn-copy").addEventListener("click", () => {
   if (!editor) return;
-  const text = editor.getValue();
-  navigator.clipboard.writeText(text).then(() => {
-    showToast("Script copied to clipboard");
-  }).catch(() => {
-    // Fallback for non-https contexts
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    document.body.removeChild(ta);
-    showToast("Script copied to clipboard");
-  });
+  copyToClipboard(editor.getValue());
+  showToast("Script copied to clipboard");
 });
 
 document.getElementById("btn-download").addEventListener("click", () => {
-  if (!editor || !currentScript) return;
+  if (!editor) return;
+  const name = currentScript?.name ?? "new-script.ps1";
   const blob = new Blob([editor.getValue()], { type: "text/plain" });
   const a    = document.createElement("a");
   a.href     = URL.createObjectURL(blob);
-  a.download = currentScript.name;
+  a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
-  showToast(`Downloaded ${currentScript.name}`);
+  showToast(`Downloaded ${name}`);
 });
 
 document.getElementById("btn-reset").addEventListener("click", () => {
-  if (!editor || !currentScript) return;
-  editor.setValue(originalSrc);
-  updateStatusBar(false);
-  setStatusMsg("Reset to original");
-  showToast("Script reset to original");
+  if (!editor) return;
+  const container = document.getElementById("editor-container");
+  container.classList.add("fading");
+  setTimeout(() => {
+    editor.setValue(originalSrc);
+    container.classList.remove("fading");
+    updateStatusBar(false);
+    showToast("Reset to original");
+  }, 120);
 });
 
-/* ═══════════════════════════════════════════════════════ SEARCH & FILTER ═ */
+document.getElementById("btn-share").addEventListener("click", () => {
+  if (!currentScript) return;
+  const url = `${location.origin}${location.pathname}#${currentScript.id}`;
+  copyToClipboard(url);
+  showToast("Share link copied to clipboard");
+});
+
+/* ═══════════════════════════════════ SEARCH & FILTER ═══════════════════ */
 
 document.getElementById("search-input").addEventListener("input", e => {
   renderSidebar(activeFilter, e.target.value);
@@ -260,33 +493,170 @@ document.querySelectorAll(".filter-btn").forEach(btn => {
   });
 });
 
-/* ═══════════════════════════════════════════════════════ KEYBOARD SHORTCUTS */
+/* ═══════════════════════════════════ KEYBOARD ═══════════════════════════ */
 
 document.addEventListener("keydown", e => {
-  // Ctrl/Cmd + S → copy (most useful action in a read context)
+  const searchInput = document.getElementById("search-input");
+
+  // / → focus search
+  if (e.key === "/" && document.activeElement !== searchInput && !e.ctrlKey && !e.metaKey) {
+    e.preventDefault();
+    searchInput.focus();
+    searchInput.select();
+  }
+  // Escape → blur search / close modal
+  if (e.key === "Escape") {
+    if (document.getElementById("workflow-modal").classList.contains("open")) {
+      closeWorkflowModal();
+    } else if (document.activeElement === searchInput) {
+      searchInput.blur();
+      searchInput.value = "";
+      renderSidebar(activeFilter, "");
+    }
+  }
+  // Ctrl/Cmd+S → copy
   if ((e.ctrlKey || e.metaKey) && e.key === "s") {
     e.preventDefault();
     document.getElementById("btn-copy").click();
   }
-  // Ctrl/Cmd + D → download
+  // Ctrl/Cmd+D → download
   if ((e.ctrlKey || e.metaKey) && e.key === "d") {
     e.preventDefault();
     document.getElementById("btn-download").click();
   }
-  // Escape → clear search
-  if (e.key === "Escape") {
-    const si = document.getElementById("search-input");
-    if (document.activeElement === si) {
-      si.value = "";
-      renderSidebar(activeFilter, "");
-    }
-  }
 });
 
-/* ═══════════════════════════════════════════════════════ BOOT ═══════════ */
+/* ═══════════════════════════════════ HASH ROUTING ═══════════════════════ */
 
-// Initial sidebar render
+function loadFromHash() {
+  const id = location.hash.replace("#", "");
+  if (!id || id === "new") return;
+  const script = window.RTR_SCRIPTS.find(s => s.id === id);
+  if (script) loadScript(script);
+}
+
+window.addEventListener("hashchange", loadFromHash);
+
+/* ═══════════════════════════════════ UTILITIES ══════════════════════════ */
+
+function copyToClipboard(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  Object.assign(ta.style, { position: "fixed", opacity: "0" });
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove("show"), 2400);
+}
+
+/* ═══════════════════════════════════ MONACO ═════════════════════════════ */
+
+function initMonaco() {
+  require.config({
+    paths: { vs: "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs" }
+  });
+
+  require(["vs/editor/editor.main"], () => {
+    monaco.editor.defineTheme("rtr-dark", {
+      base: "vs-dark",
+      inherit: true,
+      rules: [
+        { token: "comment",           foreground: "5a6380", fontStyle: "italic" },
+        { token: "keyword",           foreground: "c792ea" },
+        { token: "string",            foreground: "c3e88d" },
+        { token: "number",            foreground: "f78c6c" },
+        { token: "variable",          foreground: "82aaff" },
+        { token: "type",              foreground: "ffcb6b" },
+        { token: "delimiter.bracket", foreground: "89ddff" },
+        { token: "operator",          foreground: "89ddff" },
+      ],
+      colors: {
+        "editor.background":              "#15171a",
+        "editor.foreground":              "#e8eaf0",
+        "editor.lineHighlightBackground": "#1c1f2400",
+        "editor.lineHighlightBorder":     "#22262d",
+        "editorLineNumber.foreground":    "#2e3240",
+        "editorLineNumber.activeForeground": "#5a6380",
+        "editor.selectionBackground":     "#1a2e4a",
+        "editorCursor.foreground":        "#e8002d",
+        "editorCursor.background":        "#15171a",
+        "editor.findMatchBackground":     "#e8002d40",
+        "editor.findMatchHighlightBackground": "#e8002d20",
+        "editorGutter.background":        "#15171a",
+        "scrollbarSlider.background":     "#2a2d3555",
+        "scrollbarSlider.hoverBackground":"#3a3d4788",
+        "editorIndentGuide.background1":  "#222530",
+        "editorBracketMatch.background":  "#1a2e4a",
+        "editorBracketMatch.border":      "#3b82f660",
+        "minimap.background":             "#13151850",
+      }
+    });
+
+    editor = monaco.editor.create(document.getElementById("editor-container"), {
+      value: "",
+      language: "powershell",
+      theme: "rtr-dark",
+      fontFamily: '"Cascadia Code", "Fira Code", "JetBrains Mono", "Consolas", monospace',
+      fontSize: 13,
+      lineHeight: 22,
+      tabSize: 4,
+      insertSpaces: true,
+      wordWrap: "off",
+      minimap: { enabled: true, scale: 1, renderCharacters: false },
+      scrollBeyondLastLine: false,
+      renderWhitespace: "selection",
+      smoothScrolling: true,
+      cursorBlinking: "phase",
+      cursorSmoothCaretAnimation: "on",
+      padding: { top: 14, bottom: 14 },
+      bracketPairColorization: { enabled: true },
+      guides: { bracketPairs: "active" },
+      folding: true,
+      lineNumbers: "on",
+      glyphMargin: false,
+      renderLineHighlight: "line",
+      overviewRulerBorder: false,
+      hideCursorInOverviewRuler: true,
+      occurrencesHighlight: "off",
+      quickSuggestions: { other: true, comments: false, strings: false },
+    });
+
+    editor.onDidChangeModelContent(() => {
+      if (!currentScript && editor.getValue() === NEW_SCRIPT_TEMPLATE) return;
+      const isDirty = editor.getValue() !== originalSrc;
+      updateStatusBar(isDirty);
+      const lines = editor.getModel()?.getLineCount() ?? 0;
+      document.getElementById("status-lines").textContent = `${lines} lines`;
+    });
+
+    window.addEventListener("resize", () => editor.layout());
+
+    // Load from URL hash, or fall back to first script
+    if (location.hash && location.hash !== "#new") {
+      loadFromHash();
+    } else if (window.RTR_SCRIPTS.length > 0) {
+      loadScript(window.RTR_SCRIPTS[0]);
+    }
+  });
+}
+
+/* ═══════════════════════════════════ BOOT ═══════════════════════════════ */
+
 renderSidebar("all", "");
-
-// Boot Monaco
 initMonaco();

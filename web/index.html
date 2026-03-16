@@ -3,23 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CrowdStrike RTR Script Lab</title>
+  <title>RTR Labs — CrowdStrike Script Library</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- ═══════════════════════════════════════════════════════ HEADER -->
+  <!-- ═══ HEADER ════════════════════════════════════════════════════════════ -->
   <header class="app-header">
     <div class="header-brand">
-      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-        <path d="M2 17l10 5 10-5"/>
-        <path d="M2 12l10 5 10-5"/>
-      </svg>
-      <span class="brand-name">RTR Script Lab</span>
-      <span class="brand-sub">CrowdStrike Real Time Response</span>
+      <img src="favicon.svg" class="brand-icon" alt="RTR Labs" />
+      <span class="brand-name">RTR Labs</span>
+      <span class="brand-sep"></span>
+      <span class="brand-sub">rtrlabs.io</span>
     </div>
     <div class="header-actions">
+      <button id="btn-workflow" class="btn btn-ghost" title="IR Workflow view">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h8M15.5 6.5L7 12M15.5 17.5L7 12"/></svg>
+        Workflow
+      </button>
+      <button id="btn-new" class="btn btn-ghost" title="New script from template">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+        New
+      </button>
+      <button id="btn-export-all" class="btn btn-secondary" title="Download all scripts as .zip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export All
+      </button>
+      <div class="header-divider"></div>
       <button id="btn-copy" class="btn btn-secondary" title="Copy script to clipboard">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         Copy
@@ -28,23 +39,24 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download
       </button>
-      <button id="btn-reset" class="btn btn-ghost" title="Reset editor to original script">
+      <button id="btn-reset" class="btn btn-ghost" title="Reset to original">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
         Reset
       </button>
     </div>
   </header>
 
-  <!-- ═══════════════════════════════════════════════════════ MAIN LAYOUT -->
+  <!-- ═══ MAIN LAYOUT ═══════════════════════════════════════════════════════ -->
   <div class="app-body">
 
-    <!-- ═══ SIDEBAR ══════════════════════════════════════════════════════ -->
+    <!-- ═══ SIDEBAR ═══════════════════════════════════════════════════════════ -->
     <aside class="sidebar">
       <div class="sidebar-search">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
         </svg>
         <input type="text" id="search-input" placeholder="Search scripts…" autocomplete="off" />
+        <kbd class="search-hint">/</kbd>
       </div>
 
       <div class="filter-bar">
@@ -54,39 +66,54 @@
         <button class="filter-btn" data-filter="Eradication">Eradicate</button>
       </div>
 
-      <nav class="script-nav" id="script-nav">
-        <!-- Populated by JS -->
-      </nav>
+      <nav class="script-nav" id="script-nav"></nav>
+
+      <div class="sidebar-footer">
+        <span class="script-count" id="script-count"></span>
+      </div>
     </aside>
 
-    <!-- ═══ EDITOR PANEL ══════════════════════════════════════════════════ -->
+    <!-- ═══ EDITOR PANEL ════════════════════════════════════════════════════ -->
     <main class="editor-panel">
-
-      <!-- Metadata bar -->
       <div class="meta-bar" id="meta-bar">
         <div class="meta-title" id="meta-title">Select a script</div>
         <div class="meta-tags" id="meta-tags"></div>
+        <div class="meta-spacer"></div>
+        <button id="btn-share" class="btn-icon" title="Copy share link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </button>
       </div>
 
-      <!-- Monaco editor mount point -->
-      <div id="editor-container"></div>
+      <div id="editor-container" class="editor-fade"></div>
 
-      <!-- Status bar -->
       <div class="status-bar">
         <span id="status-modified" class="status-chip status-clean">Unmodified</span>
         <span id="status-lines" class="status-info"></span>
         <span class="status-info">PowerShell · UTF-8</span>
         <span id="status-msg" class="status-msg"></span>
       </div>
-
     </main>
 
-    <!-- ═══ INFO PANEL ════════════════════════════════════════════════════ -->
+    <!-- ═══ INFO PANEL ═══════════════════════════════════════════════════════ -->
     <aside class="info-panel" id="info-panel">
 
       <section class="info-section">
         <h3>About this script</h3>
         <p id="info-description" class="info-desc">—</p>
+      </section>
+
+      <!-- Parameter injection — only visible for scripts with params -->
+      <section class="info-section param-section" id="param-section" style="display:none">
+        <h3>Run Parameters</h3>
+        <form id="param-form" class="param-form"></form>
+        <div class="param-output">
+          <div class="param-output-label">Generated command</div>
+          <div class="param-cmd" id="param-cmd"></div>
+          <button type="button" id="btn-copy-cmd" class="btn btn-primary btn-sm">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            Copy command
+          </button>
+        </div>
       </section>
 
       <section class="info-section">
@@ -95,7 +122,7 @@
       </section>
 
       <section class="info-section">
-        <h3>Checklist</h3>
+        <h3>Pre-deploy checklist</h3>
         <ul class="checklist" id="info-checklist">
           <li><label><input type="checkbox" /> Reviewed script logic</label></li>
           <li><label><input type="checkbox" /> Tested in lab environment</label></li>
@@ -107,33 +134,41 @@
       <section class="info-section">
         <h3>Quick Reference</h3>
         <div class="quick-ref">
-          <div class="qr-item">
-            <span class="qr-label">Run script</span>
-            <code>runscript -CloudFile="…"</code>
-          </div>
-          <div class="qr-item">
-            <span class="qr-label">Get file</span>
-            <code>get C:\path\to\file</code>
-          </div>
-          <div class="qr-item">
-            <span class="qr-label">Put file</span>
-            <code>put C:\destination</code>
-          </div>
-          <div class="qr-item">
-            <span class="qr-label">List files</span>
-            <code>ls C:\Windows\Temp</code>
-          </div>
+          <div class="qr-item"><span class="qr-label">Run script</span><code>runscript -CloudFile="…"</code></div>
+          <div class="qr-item"><span class="qr-label">Get file</span><code>get C:\path\to\file</code></div>
+          <div class="qr-item"><span class="qr-label">Put file</span><code>put C:\destination</code></div>
+          <div class="qr-item"><span class="qr-label">List files</span><code>ls C:\Windows\Temp</code></div>
         </div>
       </section>
 
     </aside>
   </div>
 
-  <!-- ═══ TOAST NOTIFICATION ════════════════════════════════════════════ -->
+  <!-- ═══ WORKFLOW MODAL ═══════════════════════════════════════════════════ -->
+  <div id="workflow-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-box workflow-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h8M15.5 6.5L7 12M15.5 17.5L7 12"/></svg>
+          IR Workflow
+        </div>
+        <p class="modal-subtitle">Click any script to load it in the editor</p>
+        <button class="modal-close" id="workflow-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="workflow-columns" id="workflow-columns">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TOAST ════════════════════════════════════════════════════════════ -->
   <div id="toast" class="toast" aria-live="polite"></div>
 
-  <!-- Monaco Editor (CDN, no build step needed) -->
+  <!-- CDN scripts — Monaco first (blocking so require() is available) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="scripts-data.js"></script>
   <script src="app.js"></script>
 </body>

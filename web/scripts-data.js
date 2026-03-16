@@ -478,6 +478,9 @@ Write-Output "===== END PREFETCH DUMP ====="
     irPhase:    "Identification",
     permission: "Active Responder",
     description: "Extracts recent browsing history from Chrome, Edge, and Firefox across all user profiles. Useful for finding initial access vectors (phishing links clicked) and identifying C2 domains visited by malware.",
+    params: [
+      { name: "DaysBack", type: "number", placeholder: "7", hint: "How many days of history to retrieve (default: 7)", required: false }
+    ],
     usage: `runscript -CloudFile="artefact-collection/browser-history.ps1"`,
     source: `<#
 .SYNOPSIS
@@ -566,6 +569,11 @@ Write-Output "===== END BROWSER HISTORY ====="
     irPhase:    "Containment",
     permission: "Active Responder",
     description: "Terminates a process but first captures its path, command line, parent, and SHA256 hash. Supports -DryRun to preview what would be killed. Always document before you destroy.",
+    params: [
+      { name: "TargetPID",  type: "number",  placeholder: "e.g. 4832",       hint: "Process ID (takes precedence over name)",     required: false },
+      { name: "TargetName", type: "string",  placeholder: "e.g. malware.exe", hint: "Process name — kills ALL matching processes", required: false },
+      { name: "DryRun",     type: "boolean", default: true,                   hint: "Preview impact without terminating anything" }
+    ],
     usage: `# Dry run first
 runscript -CloudFile="remediation/kill-process.ps1" -CommandLine="-TargetName 'evil.exe' -DryRun \\$true"
 
