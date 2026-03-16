@@ -1639,6 +1639,331 @@ Write-Output "===== END ISOLATE PREP ====="
 `
   },
 
+  // ══════════════════════════════════════════════════════ Windows — ERADICATION
+  {
+    id: "kill-process",
+    category: "Remediation",
+    os: "windows",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "kill-process.ps1",
+    shortDesc: "Kill process by name or PID, optionally delete binary",
+    irPhase: "Eradication",
+    permission: "RTR Admin",
+    description: "Locates a process by name or PID, logs full details (binary path, owner, parent PID, start time) before acting, then kills it. Optional -DeleteBinary flag removes the executable from disk. Always confirm the correct target first — use process-investigation scripts to identify PIDs. Destructive if DeleteBinary is set.",
+    params: [
+      { name: "ProcessName",  type: "string",  placeholder: "malware.exe",  hint: "Process name to kill — kills all matching instances",    required: false },
+      { name: "ProcessId",    type: "number",  placeholder: "4812",         hint: "Specific PID to kill — use when name is ambiguous",      required: false },
+      { name: "DeleteBinary", type: "boolean", default: false,              hint: "Also delete the process binary from disk (DESTRUCTIVE)", required: false },
+    ],
+    usage: `runscript -CloudFile="remediation/kill-process.ps1" -CommandLine="-ProcessName 'malware.exe'"`,
+    source: `#Requires -RunAsAdministrator
+param(
+    [string]$ProcessName  = "",
+    [int]   $ProcessId    = 0,
+    [bool]  $DeleteBinary = \$false
+)
+
+Write-Output "===== KILL PROCESS ====="
+Write-Output "Host     : \$env:COMPUTERNAME"
+Write-Output "Operator : \$env:USERDOMAIN\\\$env:USERNAME"
+Write-Output "Time     : \$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Output ""
+
+if (-not \$ProcessName -and \$ProcessId -eq 0) {
+    Write-Output "[ERROR] Supply -ProcessName <name> or -ProcessId <pid>"
+    exit 1
+}
+
+\$targets = if (\$ProcessId -gt 0) {
+    @(Get-Process -Id \$ProcessId -ErrorAction SilentlyContinue)
+} else {
+    @(Get-Process -Name (\$ProcessName -replace '\\.exe\$','') -ErrorAction SilentlyContinue)
+}
+
+if (\$targets.Count -eq 0) {
+    \$label = if (\$ProcessId -gt 0) { "PID \$ProcessId" } else { "'\$ProcessName'" }
+    Write-Output "[ERROR] No process found matching \$label"; exit 1
+}
+
+Write-Output "===== TARGETS (\$(\$targets.Count) found) ====="
+\$binaries = @()
+foreach (\$p in \$targets) {
+    \$bin  = try { \$p.MainModule.FileName } catch { "n/a" }
+    \$owner = try { \$o = (Get-CimInstance Win32_Process -Filter "ProcessId=\$(\$p.Id)").GetOwner(); "\$(\$o.Domain)\\\$(\$o.User)" } catch { "n/a" }
+    \$ppid  = try { (Get-CimInstance Win32_Process -Filter "ProcessId=\$(\$p.Id)").ParentProcessId } catch { "n/a" }
+    Write-Output "  Name       : \$(\$p.ProcessName)"
+    Write-Output "  PID        : \$(\$p.Id)"
+    Write-Output "  Owner      : \$owner"
+    Write-Output "  Parent PID : \$ppid"
+    Write-Output "  Binary     : \$bin"
+    Write-Output "  Started    : \$(\$p.StartTime)"
+    Write-Output ""
+    if (\$bin -ne "n/a" -and \$bin) { \$binaries += \$bin }
+}
+
+Write-Output "===== KILLING ====="
+foreach (\$p in \$targets) {
+    try { \$p.Kill(); \$p.WaitForExit(3000) | Out-Null; Write-Output "  [+] Killed \$(\$p.ProcessName) (PID \$(\$p.Id))" }
+    catch { Write-Output "  [!] Failed to kill PID \$(\$p.Id): \$(\$_.Exception.Message)" }
+}
+
+if (\$DeleteBinary) {
+    Write-Output ""; Write-Output "===== DELETING BINARIES ====="
+    foreach (\$bin in (\$binaries | Sort-Object -Unique)) {
+        if (-not (Test-Path \$bin)) { Write-Output "  [?] Already gone: \$bin"; continue }
+        try { Remove-Item -Path \$bin -Force -ErrorAction Stop; Write-Output "  [+] Deleted: \$bin" }
+        catch {
+            & takeown.exe /f \$bin 2>&1 | Out-Null
+            & icacls.exe \$bin /grant "\${env:USERNAME}:F" 2>&1 | Out-Null
+            try { Remove-Item -Path \$bin -Force; Write-Output "  [+] Deleted (after takeown): \$bin" }
+            catch { Write-Output "  [!] Could not delete '\$bin': \$(\$_.Exception.Message)" }
+        }
+    }
+} else {
+    if (\$binaries.Count -gt 0) {
+        Write-Output ""; Write-Output "  Binary paths (use -DeleteBinary \`\$true to remove):"
+        \$binaries | Sort-Object -Unique | ForEach-Object { Write-Output "    \$_" }
+    }
+}
+
+Write-Output ""; Write-Output "===== END KILL PROCESS ====="
+`
+  },
+
+  {
+    id: "remove-scheduled-task",
+    category: "Remediation",
+    os: "windows",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "remove-scheduled-task.ps1",
+    shortDesc: "Log full task definition then permanently delete it",
+    irPhase: "Eradication",
+    permission: "RTR Admin",
+    description: "Finds a scheduled task by name and path, exports the full task XML definition for case documentation, then permanently deletes it with Unregister-ScheduledTask. Verifies deletion afterwards. Run scheduled-tasks.ps1 first to identify the exact task name and path before executing this script.",
+    params: [
+      { name: "TaskName", type: "string", placeholder: "MicrosoftEdgeUpdate", hint: "Exact task name — use scheduled-tasks.ps1 to find it",         required: true },
+      { name: "TaskPath", type: "string", placeholder: "\\",                  hint: "Task folder path (default: \\ = root). E.g. \\Microsoft\\Windows\\", required: false },
+    ],
+    usage: `runscript -CloudFile="remediation/remove-scheduled-task.ps1" -CommandLine="-TaskName 'EvilTask' -TaskPath '\\\\'`,
+    source: `#Requires -RunAsAdministrator
+param(
+    [Parameter(Mandatory=\$true)][string]\$TaskName = "",
+    [string]\$TaskPath = "\\"
+)
+
+Write-Output "===== REMOVE SCHEDULED TASK ====="
+Write-Output "Host     : \$env:COMPUTERNAME"
+Write-Output "Operator : \$env:USERDOMAIN\\\$env:USERNAME"
+Write-Output "Time     : \$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Output "Target   : \$TaskPath\$TaskName"
+Write-Output ""
+
+if (-not \$TaskName) { Write-Output "[ERROR] -TaskName is required"; exit 1 }
+
+\$task = Get-ScheduledTask -TaskName \$TaskName -TaskPath \$TaskPath -ErrorAction SilentlyContinue
+if (-not \$task) {
+    Write-Output "[ERROR] Scheduled task not found: '\$TaskName' at path '\$TaskPath'"
+    Write-Output "  Hint: run scheduled-tasks.ps1 to list tasks and confirm the exact name/path"
+    exit 1
+}
+
+Write-Output "===== TASK DETAILS (pre-deletion record) ====="
+Write-Output "  Task Name   : \$(\$task.TaskName)"
+Write-Output "  Task Path   : \$(\$task.TaskPath)"
+Write-Output "  State       : \$(\$task.State)"
+foreach (\$a in \$task.Actions) {
+    Write-Output "  Execute     : \$(\$a.Execute)"
+    Write-Output "  Arguments   : \$(\$a.Arguments)"
+}
+foreach (\$t in \$task.Triggers) {
+    Write-Output "  Trigger     : \$(\$t.CimClass.CimClassName)"
+    if (\$t.StartBoundary) { Write-Output "  Starts      : \$(\$t.StartBoundary)" }
+}
+Write-Output "  RunAs       : \$(\$task.Principal.UserId)"
+Write-Output "  RunLevel    : \$(\$task.Principal.RunLevel)"
+Write-Output ""
+Write-Output "--- Task XML ---"
+try { Export-ScheduledTask -TaskName \$TaskName -TaskPath \$TaskPath } catch { Write-Output "  [XML unavailable]" }
+Write-Output ""
+
+Write-Output "===== REMOVING ====="
+try {
+    Unregister-ScheduledTask -TaskName \$TaskName -TaskPath \$TaskPath -Confirm:\$false -ErrorAction Stop
+    Write-Output "  [+] Removed: \$TaskPath\$TaskName"
+} catch { Write-Output "  [!] Failed: \$(\$_.Exception.Message)"; exit 1 }
+
+\$verify = Get-ScheduledTask -TaskName \$TaskName -TaskPath \$TaskPath -ErrorAction SilentlyContinue
+if (\$verify) { Write-Output "  [!] WARNING: task still present — manual review required" }
+else          { Write-Output "  [+] Confirmed: task no longer registered" }
+
+Write-Output ""; Write-Output "===== END REMOVE SCHEDULED TASK ====="
+`
+  },
+
+  {
+    id: "remove-service",
+    category: "Remediation",
+    os: "windows",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "remove-service.ps1",
+    shortDesc: "Stop and delete a malicious Windows service",
+    irPhase: "Eradication",
+    permission: "RTR Admin",
+    description: "Finds a service by its sc name (not display name), logs full registry configuration (binary path, account, start type), stops it, and removes it via sc.exe delete. Verifies removal. Optional -DeleteBinary flag removes the service binary from disk. Use suspicious-services.ps1 to identify targets first.",
+    params: [
+      { name: "ServiceName",  type: "string",  placeholder: "evilsvc",  hint: "Service sc name (not display name) — use suspicious-services.ps1 to find", required: true },
+      { name: "DeleteBinary", type: "boolean", default: false,           hint: "Also delete the service binary from disk (DESTRUCTIVE)",                   required: false },
+    ],
+    usage: `runscript -CloudFile="remediation/remove-service.ps1" -CommandLine="-ServiceName 'evilsvc'"`,
+    source: `#Requires -RunAsAdministrator
+param(
+    [Parameter(Mandatory=\$true)][string]\$ServiceName = "",
+    [bool]\$DeleteBinary = \$false
+)
+
+Write-Output "===== REMOVE SERVICE ====="
+Write-Output "Host     : \$env:COMPUTERNAME"
+Write-Output "Operator : \$env:USERDOMAIN\\\$env:USERNAME"
+Write-Output "Time     : \$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Output ""
+
+if (-not \$ServiceName) { Write-Output "[ERROR] -ServiceName is required"; exit 1 }
+
+\$svc = Get-Service -Name \$ServiceName -ErrorAction SilentlyContinue
+if (-not \$svc) { Write-Output "[ERROR] Service not found: '\$ServiceName'"; exit 1 }
+
+\$reg = Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Services\\\$ServiceName" -ErrorAction SilentlyContinue
+
+Write-Output "===== SERVICE DETAILS (pre-deletion record) ====="
+Write-Output "  Service Name  : \$(\$svc.ServiceName)"
+Write-Output "  Display Name  : \$(\$svc.DisplayName)"
+Write-Output "  Status        : \$(\$svc.Status)"
+Write-Output "  Start Type    : \$(\$svc.StartType)"
+if (\$reg) {
+    Write-Output "  Binary Path   : \$(\$reg.ImagePath)"
+    Write-Output "  Object Name   : \$(\$reg.ObjectName)"
+}
+Write-Output ""
+
+\$binPath = if (\$reg -and \$reg.ImagePath) { ((\$reg.ImagePath -replace '"','') -split ' ')[0] } else { "" }
+
+Write-Output "===== STOPPING ====="
+if (\$svc.Status -eq 'Running') {
+    try { Stop-Service -Name \$ServiceName -Force -ErrorAction Stop; Write-Output "  [+] Stopped: \$ServiceName" }
+    catch { & sc.exe stop \$ServiceName 2>&1; Start-Sleep 2 }
+} else { Write-Output "  [i] Already stopped (\$(\$svc.Status))" }
+
+Write-Output ""; Write-Output "===== DELETING ====="
+& sc.exe delete \$ServiceName 2>&1 | ForEach-Object { Write-Output "  \$_" }
+
+Start-Sleep -Milliseconds 500
+\$v = Get-Service -Name \$ServiceName -ErrorAction SilentlyContinue
+if (\$v) { Write-Output "  [!] Still registered — may need reboot to fully remove" }
+else     { Write-Output "  [+] Confirmed: service no longer registered" }
+
+if (\$DeleteBinary -and \$binPath) {
+    Write-Output ""; Write-Output "===== DELETING BINARY: \$binPath ====="
+    if (Test-Path \$binPath) {
+        try { Remove-Item -Path \$binPath -Force; Write-Output "  [+] Deleted: \$binPath" }
+        catch { Write-Output "  [!] Could not delete: \$(\$_.Exception.Message)" }
+    } else { Write-Output "  [?] Binary not found at path" }
+}
+
+Write-Output ""; Write-Output "===== END REMOVE SERVICE ====="
+`
+  },
+
+  {
+    id: "remove-registry-run-key",
+    category: "Remediation",
+    os: "windows",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "remove-registry-run-key.ps1",
+    shortDesc: "Remove a Run/RunOnce persistence entry from the registry",
+    irPhase: "Eradication",
+    permission: "RTR Admin",
+    description: "Displays all current Run/RunOnce entries across HKLM and HKCU (including Wow6432Node variants) for review, then removes the named value. Logs the full value data before deletion for case documentation. Verifies removal afterwards. Run persistence-registry.ps1 first to identify the exact value name.",
+    params: [
+      { name: "ValueName", type: "string", placeholder: "WindowsUpdate",    hint: "Exact registry value name to remove (case-insensitive match)",  required: true },
+      { name: "Hive",      type: "string", placeholder: "HKLM",             hint: "HKLM, HKCU, or Both (default: HKLM)",                          required: false },
+    ],
+    usage: `runscript -CloudFile="remediation/remove-registry-run-key.ps1" -CommandLine="-ValueName 'WindowsUpdate' -Hive 'HKLM'"`,
+    source: `#Requires -RunAsAdministrator
+param(
+    [Parameter(Mandatory=\$true)][string]\$ValueName = "",
+    [ValidateSet("HKLM","HKCU","Both")][string]\$Hive = "HKLM"
+)
+
+Write-Output "===== REMOVE REGISTRY RUN KEY ====="
+Write-Output "Host     : \$env:COMPUTERNAME"
+Write-Output "Operator : \$env:USERDOMAIN\\\$env:USERNAME"
+Write-Output "Time     : \$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Output "Target   : ValueName='\$ValueName'  Hive='\$Hive'"
+Write-Output ""
+
+if (-not \$ValueName) { Write-Output "[ERROR] -ValueName is required"; exit 1 }
+
+\$allPaths = @(
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+    "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce",
+    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Run",
+    "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\RunOnce",
+    "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+    "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce"
+)
+
+Write-Output "===== ALL CURRENT RUN ENTRIES (for context) ====="
+foreach (\$path in \$allPaths) {
+    if (-not (Test-Path \$path)) { continue }
+    \$vals = Get-ItemProperty \$path -ErrorAction SilentlyContinue
+    \$entries = \$vals.PSObject.Properties | Where-Object { \$_.Name -notlike 'PS*' }
+    if (-not \$entries) { continue }
+    Write-Output "[\$path]"
+    foreach (\$e in \$entries) {
+        \$mark = if (\$e.Name -ieq \$ValueName) { "  <-- TARGET" } else { "" }
+        Write-Output "  \$(\$e.Name) = \$(\$e.Value)\$mark"
+    }
+    Write-Output ""
+}
+
+\$targetPaths = switch (\$Hive) {
+    "HKLM" { \$allPaths | Where-Object { \$_ -like 'HKLM:*' } }
+    "HKCU" { \$allPaths | Where-Object { \$_ -like 'HKCU:*' } }
+    "Both" { \$allPaths }
+}
+
+Write-Output "===== REMOVING '\$ValueName' ====="
+\$removed = 0
+foreach (\$path in \$targetPaths) {
+    if (-not (Test-Path \$path)) { continue }
+    \$vals  = Get-ItemProperty \$path -ErrorAction SilentlyContinue
+    \$match = \$vals.PSObject.Properties | Where-Object { \$_.Name -ieq \$ValueName }
+    if (-not \$match) { continue }
+    Write-Output "  Found in: \$path  =>  \$(\$match.Value)"
+    try {
+        Remove-ItemProperty -Path \$path -Name \$ValueName -Force -ErrorAction Stop
+        \$removed++; Write-Output "  [+] Removed: \$path\\\$ValueName"
+    } catch { Write-Output "  [!] Failed: \$(\$_.Exception.Message)" }
+}
+
+if (\$removed -eq 0) { Write-Output "  [?] '\$ValueName' not found in targeted hive(s)" }
+else                 { Write-Output ""; Write-Output "  [+] Total entries removed: \$removed" }
+
+Write-Output ""; Write-Output "===== VERIFICATION ====="
+\$still = \$false
+foreach (\$path in \$targetPaths) {
+    if (-not (Test-Path \$path)) { continue }
+    \$v = Get-ItemProperty \$path -ErrorAction SilentlyContinue
+    if (\$v.PSObject.Properties | Where-Object { \$_.Name -ieq \$ValueName }) {
+        Write-Output "  [!] Still present in: \$path"; \$still = \$true
+    }
+}
+if (-not \$still) { Write-Output "  [+] Confirmed clean — '\$ValueName' not found in targeted paths" }
+
+Write-Output ""; Write-Output "===== END REMOVE REGISTRY RUN KEY ====="
+`
+  },
+
   // ══════════════════════════════════════════════════════ macOS — TRIAGE
   {
     id: "macos-host-summary",

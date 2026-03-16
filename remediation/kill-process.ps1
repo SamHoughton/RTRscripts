@@ -1,147 +1,118 @@
+#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Kill Process - Safely terminate a process by name or PID with pre-kill evidence capture.
+    Kill a running process by name or PID. Optionally delete the binary.
 
 .DESCRIPTION
-    Terminates a specified process but FIRST captures:
-      • Full process metadata (path, command line, parent)
-      • Any child processes that will also be terminated
-      • Open handles (where accessible)
-
-    This "evidence before action" approach ensures you don't lose forensic data
-    when terminating a malicious process. Always document before you destroy.
+    Locates processes by name or PID, logs full details (path, owner, parent,
+    start time) before taking action, then terminates them. If -DeleteBinary
+    is $true, removes the executable from disk after killing.
+    CONFIRM the correct target before running. Take a forensic copy first.
 
 .IR_PHASE
-    Containment
+    Eradication
 
 .RTR_PERMISSION
-    Active Responder
-
-.PARAMETER TargetPID
-    Process ID to kill. Takes precedence over TargetName if both supplied.
-
-.PARAMETER TargetName
-    Process name to kill (e.g. "malware.exe"). Will kill ALL matching processes.
-
-.PARAMETER DryRun
-    If set to $true, collects and displays evidence but does NOT kill the process.
-    Use this first to confirm you're targeting the right process.
+    RTR Admin
 
 .EXAMPLE
-    # Dry run first — confirm target before killing
-    runscript -CloudFile="remediation/kill-process.ps1" -CommandLine="-TargetName 'suspicious.exe' -DryRun $true"
-
-    # Live kill by PID
-    runscript -CloudFile="remediation/kill-process.ps1" -CommandLine="-TargetPID 4832"
+    runscript -CloudFile="remediation/kill-process.ps1" -CommandLine="-ProcessName 'malware.exe'"
+    runscript -CloudFile="remediation/kill-process.ps1" -CommandLine="-ProcessId 4812 -DeleteBinary `$true"
 #>
-
 param(
-    [int]    $TargetPID  = 0,
-    [string] $TargetName = "",
-    [bool]   $DryRun     = $false
+    [string]$ProcessName  = "",
+    [int]   $ProcessId    = 0,
+    [bool]  $DeleteBinary = $false
 )
 
-if ($TargetPID -eq 0 -and [string]::IsNullOrWhiteSpace($TargetName)) {
-    Write-Output "[ERROR] You must supply either -TargetPID or -TargetName"
-    Write-Output "Example: -TargetPID 1234"
-    Write-Output "Example: -TargetName 'malware.exe'"
+Write-Output "===== KILL PROCESS ====="
+Write-Output "Host     : $env:COMPUTERNAME"
+Write-Output "Operator : $env:USERDOMAIN\$env:USERNAME"
+Write-Output "Time     : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+Write-Output ""
+
+if (-not $ProcessName -and $ProcessId -eq 0) {
+    Write-Output "[ERROR] Supply -ProcessName <name> or -ProcessId <pid>"
     exit 1
 }
 
-# ── Resolve target process(es) ────────────────────────────────────────────────
-$allProcs = Get-CimInstance Win32_Process
-$targets  = @()
-
-if ($TargetPID -gt 0) {
-    $targets = $allProcs | Where-Object { $_.ProcessId -eq $TargetPID }
-    if (-not $targets) {
-        Write-Output "[ERROR] No process found with PID $TargetPID"
-        exit 1
-    }
+# ── Locate targets ─────────────────────────────────────────────────────────
+$targets = if ($ProcessId -gt 0) {
+    @(Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)
 } else {
-    $targets = $allProcs | Where-Object { $_.Name -ieq $TargetName }
-    if (-not $targets) {
-        Write-Output "[ERROR] No process found with name '$TargetName'"
-        exit 1
+    @(Get-Process -Name ($ProcessName -replace '\.exe$','') -ErrorAction SilentlyContinue)
+}
+
+if ($targets.Count -eq 0) {
+    $label = if ($ProcessId -gt 0) { "PID $ProcessId" } else { "'$ProcessName'" }
+    Write-Output "[ERROR] No process found matching $label"
+    exit 1
+}
+
+# ── Log details BEFORE killing ────────────────────────────────────────────
+Write-Output "===== TARGETS ($($targets.Count) found) ====="
+$binaries = @()
+
+foreach ($p in $targets) {
+    $binPath  = try { $p.MainModule.FileName } catch { "n/a (access denied)" }
+    $owner    = try {
+        $o = (Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)").GetOwner()
+        "$($o.Domain)\$($o.User)"
+    } catch { "n/a" }
+    $parentId = try { (Get-CimInstance Win32_Process -Filter "ProcessId=$($p.Id)").ParentProcessId } catch { "n/a" }
+
+    Write-Output "  Name       : $($p.ProcessName)"
+    Write-Output "  PID        : $($p.Id)"
+    Write-Output "  Owner      : $owner"
+    Write-Output "  Parent PID : $parentId"
+    Write-Output "  Binary     : $binPath"
+    Write-Output "  Started    : $($p.StartTime)"
+    Write-Output ""
+
+    if ($binPath -ne "n/a (access denied)" -and $binPath) { $binaries += $binPath }
+}
+
+# ── Kill ───────────────────────────────────────────────────────────────────
+Write-Output "===== KILLING ====="
+foreach ($p in $targets) {
+    try {
+        $p.Kill()
+        $p.WaitForExit(3000) | Out-Null
+        Write-Output "  [+] Killed $($p.ProcessName) (PID $($p.Id))"
+    } catch {
+        Write-Output "  [!] Failed to kill PID $($p.Id): $($_.Exception.Message)"
     }
 }
 
-Write-Output "===== KILL PROCESS ====="
-if ($DryRun) { Write-Output "*** DRY RUN MODE — no processes will be terminated ***" }
-Write-Output ""
-
-$procIndex = @{}
-foreach ($p in $allProcs) { $procIndex[$p.ProcessId] = $p }
-
-foreach ($target in $targets) {
-    Write-Output "--- TARGET PROCESS ---"
-    Write-Output "PID          : $($target.ProcessId)"
-    Write-Output "Name         : $($target.Name)"
-    Write-Output "Path         : $($target.ExecutablePath)"
-    Write-Output "CommandLine  : $($target.CommandLine)"
-    Write-Output "Parent PID   : $($target.ParentProcessId)"
-    Write-Output "Parent Name  : $(if ($procIndex.ContainsKey($target.ParentProcessId)) { $procIndex[$target.ParentProcessId].Name } else { 'N/A' })"
-    Write-Output "Started      : $($target.CreationDate)"
-
-    # ── Child processes ───────────────────────────────────────────────────────
-    # Important: killing a process tree requires stopping children too, or they
-    # may be re-parented to System and continue running
-    $children = $allProcs | Where-Object { $_.ParentProcessId -eq $target.ProcessId }
-    if ($children) {
-        Write-Output ""
-        Write-Output "Child processes (will also be affected):"
-        $children | Select-Object ProcessId, Name, CommandLine | Format-Table -AutoSize
-    } else {
-        Write-Output "Child processes : None"
-    }
-
-    # ── Hash for IOC generation ───────────────────────────────────────────────
-    if ($target.ExecutablePath -and (Test-Path $target.ExecutablePath)) {
-        try {
-            $hash = Get-FileHash -Path $target.ExecutablePath -Algorithm SHA256 -ErrorAction Stop
-            Write-Output "SHA256         : $($hash.Hash)"
-        } catch {
-            Write-Output "SHA256         : [could not hash: $_]"
-        }
-    }
-
+# ── Optional: delete binary ────────────────────────────────────────────────
+if ($DeleteBinary) {
     Write-Output ""
-
-    if (-not $DryRun) {
-        # Kill the process tree (children first to avoid re-parenting)
-        foreach ($child in $children) {
-            Write-Output "Killing child PID $($child.ProcessId) ($($child.Name))..."
+    Write-Output "===== DELETING BINARIES ====="
+    foreach ($bin in ($binaries | Sort-Object -Unique)) {
+        if (-not (Test-Path $bin)) { Write-Output "  [?] Already gone: $bin"; continue }
+        try {
+            Remove-Item -Path $bin -Force -ErrorAction Stop
+            Write-Output "  [+] Deleted: $bin"
+        } catch {
+            # Escalate permissions and retry
+            & takeown.exe /f $bin 2>&1 | Out-Null
+            & icacls.exe $bin /grant "${env:USERNAME}:F" 2>&1 | Out-Null
             try {
-                Stop-Process -Id $child.ProcessId -Force -ErrorAction Stop
-                Write-Output "  [OK] Child killed."
+                Remove-Item -Path $bin -Force -ErrorAction Stop
+                Write-Output "  [+] Deleted (after takeown): $bin"
             } catch {
-                Write-Output "  [!] Failed to kill child: $_"
+                Write-Output "  [!] Could not delete '$bin': $($_.Exception.Message)"
+                Write-Output "      Manual step: takeown /f '$bin' && del /f '$bin'"
             }
         }
-
-        Write-Output "Killing target PID $($target.ProcessId) ($($target.Name))..."
-        try {
-            Stop-Process -Id $target.ProcessId -Force -ErrorAction Stop
-            Write-Output "  [OK] Process terminated."
-        } catch {
-            Write-Output "  [!] Failed to terminate process: $_"
-            Write-Output "      Try running with RTR Admin role if Active Responder insufficient."
-        }
-
-        # Confirm it's gone
-        Start-Sleep -Milliseconds 500
-        $stillRunning = Get-Process -Id $target.ProcessId -ErrorAction SilentlyContinue
-        if ($stillRunning) {
-            Write-Output "  [!!] Process is STILL RUNNING after kill attempt. May require host isolation."
-        } else {
-            Write-Output "  [OK] Confirmed: process no longer running."
-        }
-    } else {
-        Write-Output "[DRY RUN] Would kill PID $($target.ProcessId) and $($children.Count) child process(es)."
-        Write-Output "[DRY RUN] Re-run without -DryRun `$true to execute."
     }
-
-    Write-Output ""
+} else {
+    if ($binaries.Count -gt 0) {
+        Write-Output ""
+        Write-Output "  Binary paths (run again with -DeleteBinary `$true to remove):"
+        $binaries | Sort-Object -Unique | ForEach-Object { Write-Output "    $_" }
+    }
 }
 
+Write-Output ""
 Write-Output "===== END KILL PROCESS ====="

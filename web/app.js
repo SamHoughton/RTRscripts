@@ -344,8 +344,9 @@ function loadScript(script) {
     if (langEl) langEl.textContent = OS_DEFS[script.os]?.langLabel || "PowerShell · UTF-8";
   }
 
-  // URL hash routing — makes scripts bookmarkable
+  // URL hash + localStorage — bookmarkable and reload-persistent
   history.replaceState(null, "", `#${script.id}`);
+  localStorage.setItem("rtr_last_script", script.id);
 
   // Page title
   document.title = `${script.name} — RTR Labs`;
@@ -393,7 +394,7 @@ function updateInfoPanel(script) {
   }
   document.getElementById("info-usage").textContent = usageText;
 
-  document.querySelectorAll(".checklist input[type='checkbox']").forEach(cb => { cb.checked = false; });
+  renderChecklist(script);
 
   const paramSection = document.getElementById("param-section");
   if (script.params && script.params.length > 0) {
@@ -405,6 +406,58 @@ function updateInfoPanel(script) {
 }
 
 
+
+/* ═══════════════════════════════════ CHECKLIST ══════════════════════════ */
+
+function buildChecklistItems(script) {
+  const items = [];
+  items.push({ text: "Reviewed script logic and understood the output format", key: "review" });
+  items.push({ text: "Confirmed correct host / asset ID targeted",             key: "host" });
+
+  if (script) {
+    if (script.irPhase?.includes("Eradication")) {
+      items.push({ text: "Verified exact target — triple-check name, PID, path or value name", key: "target", warn: true });
+      items.push({ text: "Forensic evidence / artefact captured before removal",               key: "forensic", warn: true });
+    }
+    if (script.irPhase?.includes("Containment")) {
+      items.push({ text: "Authorised by IR lead / SOC manager before isolating", key: "auth", warn: true });
+    }
+    if (script.params?.length > 0) {
+      items.push({ text: "Parameters confirmed with incident owner", key: "params" });
+    }
+    if (script.permission?.includes("Admin")) {
+      items.push({ text: "Elevated RTR Admin session confirmed (not Active Responder)", key: "admin" });
+    }
+  }
+
+  items.push({ text: "Output documented in case management system", key: "docs" });
+  return items;
+}
+
+function renderChecklist(script) {
+  const ul      = document.getElementById("info-checklist");
+  const items   = buildChecklistItems(script);
+  const saveKey = script ? `rtr_cl_${script.id}` : null;
+  const saved   = saveKey ? JSON.parse(localStorage.getItem(saveKey) || "{}") : {};
+
+  ul.innerHTML = items.map((item, i) => `
+    <li class="${item.warn ? "checklist-warn" : ""}">
+      <label>
+        <input type="checkbox" data-idx="${i}" ${saved[i] ? "checked" : ""} />
+        <span>${item.text}</span>
+      </label>
+    </li>`).join("");
+
+  if (saveKey) {
+    ul.querySelectorAll("input[type='checkbox']").forEach((cb, i) => {
+      cb.addEventListener("change", () => {
+        const state = {};
+        ul.querySelectorAll("input[type='checkbox']").forEach((c, j) => { state[j] = c.checked; });
+        localStorage.setItem(saveKey, JSON.stringify(state));
+      });
+    });
+  }
+}
 
 /* ═══════════════════════════════════ PARAM FORM ═════════════════════════ */
 
@@ -550,7 +603,7 @@ function openWorkflowModal() {
       <span class="workflow-phase-name">${phase.label}</span>`;
     col.appendChild(header);
 
-    const scripts = window.RTR_SCRIPTS.filter(s => s.irPhase.includes(phase.key));
+    const scripts = window.RTR_SCRIPTS.filter(s => s.irPhase.includes(phase.key) && s.os === activeOS);
     scripts.forEach(s => {
       const card = document.createElement("div");
       card.className = "workflow-script-card" + (currentScript?.id === s.id ? " active" : "");
@@ -631,7 +684,7 @@ document.getElementById("btn-new").addEventListener("click", () => {
   document.getElementById("info-description").textContent = "Edit the template below, then download your script.";
   document.getElementById("info-usage").textContent = 'runscript -CloudFile="category/new-script.ps1"';
   document.getElementById("param-section").style.display = "none";
-  document.querySelectorAll(".checklist input[type='checkbox']").forEach(cb => { cb.checked = false; });
+  renderChecklist(null);
   document.title = "New Script — RTR Labs";
   history.replaceState(null, "", "#new");
 
@@ -673,8 +726,9 @@ document.getElementById("btn-export-all").addEventListener("click", async () => 
   };
 
   window.RTR_SCRIPTS.forEach(s => {
-    const folder = folderMap[s.category] || s.category.toLowerCase().replace(/ /g, "-");
-    zip.folder(folder).file(s.name, s.source);
+    const subdir   = folderMap[s.category] || s.category.toLowerCase().replace(/ /g, "-");
+    const osPrefix = s.os !== "windows" ? `${s.os}/` : "";
+    zip.folder(osPrefix + subdir).file(s.name, s.source);
   });
 
   // Add a minimal README stub
@@ -897,11 +951,14 @@ function initMonaco() {
 
     window.addEventListener("resize", () => editor.layout());
 
-    // Load from URL hash, or fall back to first script
+    // Load from URL hash → or last-used script → or first script for active OS
     if (location.hash && location.hash !== "#new") {
       loadFromHash();
-    } else if (window.RTR_SCRIPTS.length > 0) {
-      loadScript(window.RTR_SCRIPTS[0]);
+    } else {
+      const lastId = localStorage.getItem("rtr_last_script");
+      const fallback = (lastId && window.RTR_SCRIPTS.find(s => s.id === lastId && s.os === activeOS))
+        || window.RTR_SCRIPTS.find(s => s.os === activeOS);
+      if (fallback) loadScript(fallback);
     }
   });
 }
