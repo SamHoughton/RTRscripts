@@ -1220,7 +1220,7 @@ if ($found -eq 0) { Write-Output "  No known credential dump tools found in runn
 Write-Output ""
 Write-Output "===== AUDIT POLICY (Process access auditing) ====="
 $auditOut = auditpol /get /subcategory:"Handle Manipulation" 2>&1
-Write-Output "  $($auditOut -join "`n  ")"
+Write-Output "  $($auditOut -join "\`n  ")"
 
 # ── Recent LSASS Handle Access Events (4656) ──────────────────────────────
 Write-Output ""
@@ -1338,7 +1338,7 @@ if ($credFound -eq 0) { Write-Output "  No suspected credential dump output file
 Write-Output ""
 Write-Output "===== WINDOWS CREDENTIAL MANAGER (cmdkey) ====="
 $cmdkeyOut = cmdkey /list 2>&1
-Write-Output ($cmdkeyOut -join "`n")
+Write-Output ($cmdkeyOut -join "\`n")
 
 Write-Output "===== END CREDENTIAL FILES ====="
 `
@@ -1439,7 +1439,7 @@ $archiveExts  = @(".zip",".7z",".rar",".tar",".gz",".bz2",".cab",".iso",".tar.gz
 $thresholdMB  = 50  # Flag archives larger than this
 
 # ── Large Archives in Staging Paths ───────────────────────────────────────
-Write-Output "===== LARGE ARCHIVES (>${thresholdMB} MB) IN STAGING PATHS ====="
+Write-Output "===== LARGE ARCHIVES (>$thresholdMB MB) IN STAGING PATHS ====="
 $archivesFound = 0
 foreach ($path in $stagingPaths) {
     if (-not (Test-Path $path)) { continue }
