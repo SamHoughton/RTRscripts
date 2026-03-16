@@ -17,6 +17,14 @@
       <span class="brand-sep"></span>
       <span class="brand-sub">rtrlabs.io</span>
     </div>
+
+    <!-- ═══ PLATFORM SWITCHER ════════════════════════════════════════════ -->
+    <div class="platform-switcher" id="platform-switcher">
+      <button class="platform-btn active" data-platform="crowdstrike" title="CrowdStrike Falcon RTR">CS</button>
+      <button class="platform-btn" data-platform="sentinelone" title="SentinelOne Singularity Remote Scripts">S1</button>
+      <button class="platform-btn" data-platform="defender" title="Microsoft Defender Live Response">MDE</button>
+    </div>
+
     <div class="header-actions">
       <button id="btn-workflow" class="btn btn-ghost" title="IR Workflow view">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/><path d="M7 12h8M15.5 6.5L7 12M15.5 17.5L7 12"/></svg>
@@ -90,6 +98,10 @@
         <span id="status-modified" class="status-chip status-clean">Unmodified</span>
         <span id="status-lines" class="status-info"></span>
         <span class="status-info">PowerShell · UTF-8</span>
+        <span id="status-platform" class="platform-indicator">
+          <span class="platform-dot" id="platform-dot"></span>
+          <span id="platform-label">CrowdStrike</span>
+        </span>
         <span id="status-msg" class="status-msg"></span>
       </div>
     </main>
@@ -133,11 +145,8 @@
 
       <section class="info-section">
         <h3>Quick Reference</h3>
-        <div class="quick-ref">
-          <div class="qr-item"><span class="qr-label">Run script</span><code>runscript -CloudFile="…"</code></div>
-          <div class="qr-item"><span class="qr-label">Get file</span><code>get C:\path\to\file</code></div>
-          <div class="qr-item"><span class="qr-label">Put file</span><code>put C:\destination</code></div>
-          <div class="qr-item"><span class="qr-label">List files</span><code>ls C:\Windows\Temp</code></div>
+        <div class="quick-ref" id="quick-ref">
+          <!-- Populated by JS based on active platform -->
         </div>
       </section>
 

@@ -13,6 +13,7 @@ window.RTR_SCRIPTS = [
   {
     id:         "host-summary",
     category:   "Triage",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
     name:       "host-summary.ps1",
     shortDesc:  "OS, uptime, local admins, AV, patches",
     irPhase:    "Identification",
@@ -83,6 +84,7 @@ Write-Output "===== END HOST SUMMARY ====="
   {
     id:         "active-connections",
     category:   "Triage",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
     name:       "active-connections.ps1",
     shortDesc:  "TCP/UDP sockets mapped to owning process",
     irPhase:    "Identification",
@@ -152,6 +154,7 @@ Write-Output "===== END ACTIVE CONNECTIONS ====="
   {
     id:         "logged-on-users",
     category:   "Triage",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
     name:       "logged-on-users.ps1",
     shortDesc:  "Active sessions + recent logon events",
     irPhase:    "Identification",
@@ -231,6 +234,7 @@ Write-Output "===== END LOGGED-ON USERS ====="
   {
     id:         "process-tree",
     category:   "Process Investigation",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
     name:       "process-tree.ps1",
     shortDesc:  "Full parent-child hierarchy + suspicious pairs",
     irPhase:    "Identification",
@@ -306,6 +310,7 @@ Write-Output "===== END PROCESS TREE ====="
   {
     id:         "unsigned-processes",
     category:   "Process Investigation",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
     name:       "unsigned-processes.ps1",
     shortDesc:  "Find running processes without valid code signing",
     irPhase:    "Identification",
@@ -388,6 +393,7 @@ Write-Output "===== END UNSIGNED PROCESSES ====="
   {
     id:         "prefetch-dump",
     category:   "Artefact Collection",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
     name:       "prefetch-dump.ps1",
     shortDesc:  "Prefetch execution history + IOC name matching",
     irPhase:    "Identification",
@@ -473,6 +479,7 @@ Write-Output "===== END PREFETCH DUMP ====="
   {
     id:         "browser-history",
     category:   "Artefact Collection",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
     name:       "browser-history.ps1",
     shortDesc:  "Chrome, Edge, Firefox history from all profiles",
     irPhase:    "Identification",
@@ -564,6 +571,7 @@ Write-Output "===== END BROWSER HISTORY ====="
   {
     id:         "kill-process",
     category:   "Remediation",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
     name:       "kill-process.ps1",
     shortDesc:  "Kill process by PID/name — captures evidence first",
     irPhase:    "Containment",
@@ -667,9 +675,850 @@ Write-Output "===== END KILL PROCESS ====="
 `
   },
 
+  // ══════════════════════════════════════════════════════ PERSISTENCE
+  {
+    id:         "scheduled-tasks",
+    category:   "Persistence",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "scheduled-tasks.ps1",
+    shortDesc:  "All scheduled tasks with encoded/LOLBin/user-path indicators",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Enumerates every scheduled task and flags entries with encoded PowerShell commands, LOLBin usage (mshta, wscript, rundll32), tasks running from user-writable paths, or tasks with no author. Adversaries frequently use scheduled tasks for persistence and lateral movement.",
+    usage: `runscript -CloudFile="persistence/scheduled-tasks.ps1"`,
+    source: `<#
+.SYNOPSIS
+    Scheduled Tasks - Enumerate all tasks with persistence indicators.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+#>
+
+Write-Output "===== SCHEDULED TASKS ANALYSIS ====="
+
+$tasks = Get-ScheduledTask -ErrorAction SilentlyContinue
+$highRiskPaths = @(
+    $env:TEMP, $env:APPDATA, $env:LOCALAPPDATA, $env:PUBLIC,
+    "C:\\PerfLogs", "C:\\Intel", "C:\\ProgramData\\Microsoft\\Windows\\Start Menu"
+)
+
+$allTasks  = [System.Collections.Generic.List[object]]::new()
+$suspicious = [System.Collections.Generic.List[object]]::new()
+
+foreach ($task in $tasks) {
+    $actions = $task.Actions | ForEach-Object {
+        $cls = $_.CimClass.CimClassName
+        if ($cls -eq "MSFT_TaskExecAction")  { "$($_.Execute) $($_.Arguments)".Trim() }
+        if ($cls -eq "MSFT_TaskComHandlerAction") { "COM: $($_.ClassId)" }
+    }
+    $actionStr = ($actions | Where-Object { $_ }) -join " | "
+
+    $allTasks.Add([PSCustomObject]@{
+        Name    = $task.TaskName
+        Path    = $task.TaskPath
+        State   = $task.State
+        Author  = if ($task.Author) { $task.Author } else { "[none]" }
+        Action  = if ($actionStr.Length -gt 100) { $actionStr.Substring(0,100)+"..." } else { $actionStr }
+    })
+
+    $reason = [System.Collections.Generic.List[string]]::new()
+    if ($actionStr -match "-[Ee]nc(odedcommand)?[\s=]+[A-Za-z0-9+/=]{20}") {
+        $reason.Add("Encoded PS command")
+    }
+    if ($actionStr -match "wscript|cscript|mshta|regsvr32\.exe|rundll32\.exe") {
+        $reason.Add("LOLBin")
+    }
+    foreach ($rp in $highRiskPaths) {
+        if ($rp -and $actionStr -like "$rp*") { $reason.Add("User-writable path"); break }
+    }
+    if (-not $task.Author -or $task.Author -eq "") {
+        $reason.Add("No author")
+    }
+    if ($actionStr -match "http://|ftp://|\\\\[0-9]{1,3}\.[0-9]{1,3}") {
+        $reason.Add("Network path/URL in action")
+    }
+    if ($reason.Count -gt 0) {
+        $suspicious.Add([PSCustomObject]@{
+            Name   = $task.TaskName
+            Reason = $reason -join ", "
+            Author = if ($task.Author) { $task.Author } else { "[none]" }
+            Action = $actionStr
+        })
+    }
+}
+
+Write-Output "Total scheduled tasks: $($allTasks.Count)"
+Write-Output ""
+Write-Output "===== ALL TASKS ====="
+$allTasks | Format-Table -AutoSize
+
+Write-Output ""
+Write-Output "===== SUSPICIOUS INDICATORS ($($suspicious.Count) found) ====="
+if ($suspicious.Count -gt 0) {
+    $suspicious | Format-Table -AutoSize
+} else {
+    Write-Output "  No suspicious scheduled tasks detected."
+}
+Write-Output "===== END SCHEDULED TASKS ====="
+`
+  },
+
+  {
+    id:         "startup-entries",
+    category:   "Persistence",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "startup-entries.ps1",
+    shortDesc:  "Run keys, startup folders, IFEO, and autostart services",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Checks all common autorun locations: HKLM/HKCU Run and RunOnce keys, per-user and all-users startup folders, Image File Execution Options (debugger hijacking), and auto-start services pointing to unusual paths. Covers the most common Windows persistence mechanisms.",
+    usage: `runscript -CloudFile="persistence/startup-entries.ps1"`,
+    source: `<#
+.SYNOPSIS
+    Startup Entries - Enumerate Run keys, startup folders, IFEO, and autostart services.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+#>
+
+Write-Output "===== STARTUP ENTRY ANALYSIS ====="
+
+$systemPaths = @("C:\\Windows\\","C:\\Program Files\\","C:\\Program Files (x86)\\")
+function Test-SuspiciousPath([string]$path) {
+    if (-not $path) { return $false }
+    $exe = ($path -split '"| -')[0].Trim().Trim('"')
+    foreach ($sp in $systemPaths) { if ($exe -like "$sp*") { return $false } }
+    return $true
+}
+
+# ── Run / RunOnce keys ─────────────────────────────────────────────────────
+$runKeys = @(
+    "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+    "HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+    "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run",
+    "HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+    "HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run"
+)
+
+Write-Output "===== RUN KEYS ====="
+foreach ($key in $runKeys) {
+    if (-not (Test-Path $key)) { continue }
+    Write-Output "--- $key ---"
+    $props = Get-ItemProperty -Path $key -ErrorAction SilentlyContinue
+    $props.PSObject.Properties |
+        Where-Object { $_.Name -notmatch "^PS" } |
+        ForEach-Object {
+            $flag = if (Test-SuspiciousPath $_.Value) { "[!]" } else { "   " }
+            Write-Output ("  $flag {0,-35} = {1}" -f $_.Name, $_.Value)
+        }
+}
+
+# ── Startup folders ────────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== STARTUP FOLDERS ====="
+$startupFolders = @(
+    "$env:APPDATA\\Microsoft\\Windows\\Start Menu\\Programs\\Startup",
+    "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp"
+)
+foreach ($folder in $startupFolders) {
+    Write-Output "--- $folder ---"
+    if (Test-Path $folder) {
+        Get-ChildItem -Path $folder -ErrorAction SilentlyContinue |
+            Select-Object Name, LastWriteTime, Length | Format-Table -AutoSize
+    } else {
+        Write-Output "  [not found]"
+    }
+}
+
+# ── Image File Execution Options (debugger hijacking) ─────────────────────
+Write-Output ""
+Write-Output "===== IMAGE FILE EXECUTION OPTIONS (IFEO) ====="
+$ifeoKey = "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options"
+if (Test-Path $ifeoKey) {
+    Get-ChildItem -Path $ifeoKey -ErrorAction SilentlyContinue | ForEach-Object {
+        $debugger = (Get-ItemProperty -Path $_.PSPath -Name "Debugger" -ErrorAction SilentlyContinue).Debugger
+        if ($debugger) {
+            Write-Output "  [!] $($_.PSChildName) → Debugger: $debugger"
+        }
+    }
+    Write-Output "  (Only entries with a Debugger value are shown)"
+} else {
+    Write-Output "  IFEO key not found."
+}
+
+# ── Auto-start services from non-standard paths ───────────────────────────
+Write-Output ""
+Write-Output "===== SUSPICIOUS AUTO-START SERVICES ====="
+Get-CimInstance Win32_Service -ErrorAction SilentlyContinue |
+    Where-Object {
+        $_.StartMode -in @("Auto","Automatic") -and
+        $_.PathName -and
+        (Test-SuspiciousPath $_.PathName)
+    } |
+    Select-Object Name, DisplayName, State, StartMode, PathName |
+    Format-Table -AutoSize
+
+Write-Output "===== END STARTUP ENTRIES ====="
+`
+  },
+
+  {
+    id:         "wmi-subscriptions",
+    category:   "Persistence",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "wmi-subscriptions.ps1",
+    shortDesc:  "WMI event filters, consumers, and bindings",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Enumerates all WMI permanent event subscriptions (filters, consumers, and filter-to-consumer bindings). WMI persistence is fileless, survives reboots, and is commonly missed by AV. Any non-Microsoft or unlabelled subscription should be investigated immediately.",
+    usage: `runscript -CloudFile="persistence/wmi-subscriptions.ps1"`,
+    source: `<#
+.SYNOPSIS
+    WMI Subscriptions - Enumerate all permanent WMI event subscriptions.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+
+.NOTES
+    Legitimate WMI subscriptions exist (e.g. SCM, antivirus), but unknown
+    entries — especially CommandLineEventConsumers — are high-confidence IOCs.
+#>
+
+Write-Output "===== WMI PERMANENT EVENT SUBSCRIPTIONS ====="
+
+$ns = "root\\subscription"
+
+# ── Event Filters ──────────────────────────────────────────────────────────
+Write-Output "===== EVENT FILTERS ====="
+try {
+    $filters = Get-CimInstance -Namespace $ns -ClassName __EventFilter -ErrorAction Stop
+    if ($filters) {
+        $filters | Select-Object Name, QueryLanguage, Query | Format-Table -AutoSize -Wrap
+    } else {
+        Write-Output "  None found."
+    }
+} catch { Write-Output "  [!] Error enumerating filters: $_" }
+
+# ── Event Consumers ────────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== EVENT CONSUMERS ====="
+$consumerClasses = @("CommandLineEventConsumer","ActiveScriptEventConsumer","LogFileEventConsumer","NtEventLogEventConsumer","SMTPEventConsumer")
+foreach ($cls in $consumerClasses) {
+    try {
+        $consumers = Get-CimInstance -Namespace $ns -ClassName $cls -ErrorAction Stop
+        if ($consumers) {
+            Write-Output "--- $cls ---"
+            # CommandLine and ScriptText are the dangerous ones
+            $consumers | Select-Object Name, CommandLineTemplate, ScriptText, ExecutablePath | Format-Table -AutoSize -Wrap
+        }
+    } catch {}
+}
+
+# ── Filter-to-Consumer Bindings ────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== FILTER-TO-CONSUMER BINDINGS ====="
+try {
+    $bindings = Get-CimInstance -Namespace $ns -ClassName __FilterToConsumerBinding -ErrorAction Stop
+    if ($bindings) {
+        $bindings | ForEach-Object {
+            $filterRef   = $_.Filter.ToString()   -replace '.*Name="([^"]+)".*','$1'
+            $consumerRef = $_.Consumer.ToString()  -replace '.*Name="([^"]+)".*','$1'
+            [PSCustomObject]@{ Filter = $filterRef; Consumer = $consumerRef }
+        } | Format-Table -AutoSize
+    } else {
+        Write-Output "  No bindings found."
+    }
+} catch { Write-Output "  [!] Error enumerating bindings: $_" }
+
+Write-Output ""
+Write-Output "NOTE: Legitimate Windows entries include SCM Event Log Consumer."
+Write-Output "      Flag anything referencing cmd.exe, powershell.exe, scripts,"
+Write-Output "      or unknown consumers not tied to a known security product."
+Write-Output "===== END WMI SUBSCRIPTIONS ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ LATERAL MOVEMENT
+  {
+    id:         "smb-sessions",
+    category:   "Lateral Movement",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "smb-sessions.ps1",
+    shortDesc:  "Active SMB sessions, open files, and shares",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Enumerates inbound SMB sessions to this host, currently open files via SMB, and all SMB shares. Useful for detecting lateral movement via pass-the-hash, PsExec-style execution, and identifying what an attacker is accessing via admin shares.",
+    usage: `runscript -CloudFile="lateral-movement/smb-sessions.ps1"`,
+    source: `<#
+.SYNOPSIS
+    SMB Sessions - Enumerate active SMB sessions, open files, and shares.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+#>
+
+Write-Output "===== SMB SESSION ANALYSIS ====="
+Write-Output "Host: $($env:COMPUTERNAME)  |  Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+
+# ── Active SMB Sessions ────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== ACTIVE SMB SESSIONS (net session) ====="
+try {
+    $netSessions = net session 2>&1
+    if ($LASTEXITCODE -eq 0 -and $netSessions -match "\\\\") {
+        $netSessions | ForEach-Object { Write-Output "  $_" }
+    } elseif ($netSessions -match "no entries") {
+        Write-Output "  No active SMB sessions."
+    } else {
+        Write-Output "  $netSessions"
+    }
+} catch { Write-Output "  [!] net session failed: $_" }
+
+# ── SMB Sessions via CIM ───────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== SMB SESSIONS (Win32_ServerConnection) ====="
+try {
+    $smbSessions = Get-CimInstance -ClassName Win32_ServerConnection -ErrorAction Stop
+    if ($smbSessions) {
+        $smbSessions | Select-Object ComputerName, UserName, NumberOfFiles, ActiveTime |
+            Sort-Object ActiveTime -Descending | Format-Table -AutoSize
+    } else {
+        Write-Output "  No Win32_ServerConnection entries."
+    }
+} catch { Write-Output "  [!] Win32_ServerConnection query failed: $_" }
+
+# ── Open Files ────────────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== OPEN FILES VIA SMB ====="
+try {
+    $openFiles = Get-SmbOpenFile -ErrorAction Stop
+    if ($openFiles) {
+        $openFiles | Select-Object FileId, ClientUserName, ClientComputerName, Path |
+            Sort-Object ClientComputerName | Format-Table -AutoSize
+    } else {
+        Write-Output "  No open SMB files."
+    }
+} catch {
+    Write-Output "  [!] Get-SmbOpenFile failed — attempting net file..."
+    net file 2>&1 | ForEach-Object { Write-Output "  $_" }
+}
+
+# ── SMB Shares ────────────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== SMB SHARES ====="
+try {
+    Get-SmbShare -ErrorAction Stop |
+        Select-Object Name, Path, Description, CurrentUsers |
+        Format-Table -AutoSize
+} catch {
+    net share 2>&1 | ForEach-Object { Write-Output "  $_" }
+}
+
+# ── Admin Share Indicators ────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== ADMIN SHARE USAGE INDICATORS (Security log, Event 5140, last 20) ====="
+try {
+    $shareEvents = Get-WinEvent -FilterHashtable @{
+        LogName   = 'Security'
+        Id        = 5140
+        StartTime = (Get-Date).AddHours(-24)
+    } -MaxEvents 20 -ErrorAction Stop
+
+    $shareEvents | ForEach-Object {
+        $xml  = [xml]$_.ToXml()
+        $data = $xml.Event.EventData.Data
+        [PSCustomObject]@{
+            Time         = $_.TimeCreated
+            SubjectUser  = ($data | Where-Object { $_.Name -eq 'SubjectUserName' }).'#text'
+            SourceIP     = ($data | Where-Object { $_.Name -eq 'IpAddress' }).'#text'
+            ShareName    = ($data | Where-Object { $_.Name -eq 'ShareName' }).'#text'
+            RelativePath = ($data | Where-Object { $_.Name -eq 'RelativeTargetName' }).'#text'
+        }
+    } | Format-Table -AutoSize
+} catch {
+    Write-Output "  [!] Could not read Security log (may require elevated privileges): $_"
+}
+
+Write-Output "===== END SMB SESSIONS ====="
+`
+  },
+
+  {
+    id:         "psremoting-activity",
+    category:   "Lateral Movement",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "psremoting-activity.ps1",
+    shortDesc:  "WinRM status, remote sessions, and PS remoting events",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Checks WinRM service state, enumerates active PowerShell remoting sessions, and pulls recent PS remoting events (4103/4104) and WS-Management operational log entries. Helps identify inbound lateral movement via Enter-PSSession, Invoke-Command, or attacker tooling like Evil-WinRM.",
+    usage: `runscript -CloudFile="lateral-movement/psremoting-activity.ps1"`,
+    source: `<#
+.SYNOPSIS
+    PSRemoting Activity - Audit WinRM, active remote sessions, and remoting events.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+#>
+
+Write-Output "===== POWERSHELL REMOTING AUDIT ====="
+Write-Output "Host: $($env:COMPUTERNAME)  |  Time: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
+
+# ── WinRM Service State ────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== WINRM SERVICE ====="
+$winrm = Get-Service -Name "WinRM" -ErrorAction SilentlyContinue
+if ($winrm) {
+    Write-Output "  Status   : $($winrm.Status)"
+    Write-Output "  StartType: $($winrm.StartType)"
+    if ($winrm.Status -eq "Running") {
+        Write-Output "  [!] WinRM is running — PS Remoting is available inbound"
+    }
+} else {
+    Write-Output "  WinRM service not found."
+}
+
+# ── WinRM Listener Config ─────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== WINRM LISTENERS ====="
+try {
+    $listeners = Get-ChildItem WSMan:\localhost\Listener -ErrorAction Stop
+    $listeners | ForEach-Object {
+        $name = $_.Name
+        $props = Get-ChildItem $_.PSPath | Select-Object Name, Value
+        Write-Output "  Listener: $name"
+        $props | ForEach-Object { Write-Output "    $($_.Name) = $($_.Value)" }
+    }
+} catch {
+    Write-Output "  [!] Could not enumerate WinRM listeners: $_"
+}
+
+# ── Active PS Sessions ────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== ACTIVE POWERSHELL REMOTE SESSIONS ====="
+try {
+    $sessions = Get-PSSession -ErrorAction Stop
+    if ($sessions) {
+        $sessions | Select-Object Id, Name, ComputerName, State, ConfigurationName | Format-Table -AutoSize
+    } else {
+        Write-Output "  No active PS remote sessions from this host."
+    }
+} catch { Write-Output "  [!] Get-PSSession failed: $_" }
+
+# ── PS Remoting Events (4103 / 4104 — Verbose + Script Block logging) ─────
+Write-Output ""
+Write-Output "===== POWERSHELL SCRIPT BLOCK EVENTS (4104, last 10) ====="
+try {
+    $sbEvents = Get-WinEvent -FilterHashtable @{
+        LogName   = "Microsoft-Windows-PowerShell/Operational"
+        Id        = 4104
+        StartTime = (Get-Date).AddHours(-24)
+    } -MaxEvents 10 -ErrorAction Stop
+    $sbEvents | ForEach-Object {
+        Write-Output "  $($_.TimeCreated)  |  $($_.Message.Substring(0, [Math]::Min(200,$_.Message.Length)))..."
+    }
+} catch { Write-Output "  [!] No PS 4104 events (Script Block logging may be disabled)" }
+
+# ── WS-Management Operational ─────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== WS-MANAGEMENT OPERATIONAL (last 10 connection events) ====="
+try {
+    $wsmEvents = Get-WinEvent -LogName "Microsoft-Windows-WinRM/Operational" -MaxEvents 20 -ErrorAction Stop |
+        Where-Object { $_.Id -in @(6, 8, 11, 12, 169) } |
+        Select-Object -First 10
+    $wsmEvents | ForEach-Object {
+        Write-Output "  $($_.TimeCreated)  ID=$($_.Id)  $($_.Message.Substring(0,[Math]::Min(120,$_.Message.Length)))"
+    }
+} catch { Write-Output "  [!] WinRM Operational log unavailable: $_" }
+
+Write-Output "===== END PSREMOTING ACTIVITY ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ CREDENTIAL INDICATORS
+  {
+    id:         "lsass-access",
+    category:   "Credential Indicators",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "lsass-access.ps1",
+    shortDesc:  "LSASS handle access events and memory dump indicators",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Looks for indicators of credential theft targeting LSASS: processes with open handles to lsass.exe (via event 4656), recent lsass.dmp files, and known credential dumping tool signatures in running processes and prefetch. The most common first step in any privilege escalation chain.",
+    usage: `runscript -CloudFile="credential-indicators/lsass-access.ps1"`,
+    source: `<#
+.SYNOPSIS
+    LSASS Access - Detect credential dumping indicators targeting LSASS.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+
+.NOTES
+    Event 4656 requires "Audit Object Access" → "Process" to be enabled.
+    If events are absent, check audit policy with: auditpol /get /category:*
+#>
+
+Write-Output "===== LSASS ACCESS INDICATORS ====="
+
+# ── Current LSASS Process Info ────────────────────────────────────────────
+Write-Output "===== LSASS PROCESS ====="
+$lsass = Get-Process lsass -ErrorAction SilentlyContinue
+if ($lsass) {
+    Write-Output "  PID  : $($lsass.Id)"
+    Write-Output "  Path : $($lsass.MainModule.FileName)"
+    Write-Output "  Start: $($lsass.StartTime)"
+    Write-Output "  CPU  : $([math]::Round($lsass.CPU, 2))s total"
+    # Unexpectedly high CPU from lsass = dumping in progress
+    if ($lsass.CPU -gt 30) {
+        Write-Output "  [!] LSASS CPU is elevated — possible active dumping"
+    }
+} else {
+    Write-Output "  [!!] lsass.exe NOT FOUND — unexpected"
+}
+
+# ── Dump files near lsass ─────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== LSASS DUMP FILES ====="
+$dumpSearchPaths = @(
+    "C:\\Windows\\Temp", "C:\\Temp", "$env:TEMP", "$env:USERPROFILE",
+    "$env:USERPROFILE\\Desktop", "$env:USERPROFILE\\Downloads",
+    "C:\\PerfLogs", "C:\\ProgramData"
+)
+$dumpFound = 0
+foreach ($searchPath in $dumpSearchPaths) {
+    if (-not (Test-Path $searchPath)) { continue }
+    $dumps = Get-ChildItem -Path $searchPath -Recurse -Depth 2 -ErrorAction SilentlyContinue |
+        Where-Object {
+            ($_.Extension -eq ".dmp" -or $_.Name -match "lsass|memory\.dmp|minidump") -and
+            $_.Length -gt 1MB
+        }
+    foreach ($d in $dumps) {
+        Write-Output "  [!!] $($d.FullName)  [$([math]::Round($d.Length/1MB,1)) MB]  Modified: $($d.LastWriteTime)"
+        $dumpFound++
+    }
+}
+if ($dumpFound -eq 0) { Write-Output "  No LSASS dump files found in common locations." }
+
+# ── Known Credential Dump Tools in Running Processes ─────────────────────
+Write-Output ""
+Write-Output "===== RUNNING PROCESSES — KNOWN DUMP TOOL NAMES ====="
+$dumpToolNames = @("mimikatz","mimi32","mimi64","procdump","wce","fgdump","pwdump",
+    "gsecdump","lsassy","pypykatz","nanodump","handlekatz","ppldump",
+    "dumpert","rdrleakdiag","sqldumper")
+$found = 0
+Get-Process -ErrorAction SilentlyContinue | ForEach-Object {
+    foreach ($name in $dumpToolNames) {
+        if ($_.Name -like "*$name*" -or ($_.MainModule.FileName -and $_.MainModule.FileName -like "*$name*")) {
+            Write-Output "  [!!] MATCH: $($_.Name) (PID $($_.Id)) Path: $($_.MainModule.FileName)"
+            $found++
+        }
+    }
+}
+if ($found -eq 0) { Write-Output "  No known credential dump tools found in running processes." }
+
+# ── Audit Policy Check ────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== AUDIT POLICY (Process access auditing) ====="
+$auditOut = auditpol /get /subcategory:"Handle Manipulation" 2>&1
+Write-Output "  $($auditOut -join "`n  ")"
+
+# ── Recent LSASS Handle Access Events (4656) ──────────────────────────────
+Write-Output ""
+Write-Output "===== LSASS HANDLE ACCESS EVENTS (4656, last 20, past 24h) ====="
+try {
+    $events = Get-WinEvent -FilterHashtable @{
+        LogName   = 'Security'
+        Id        = 4656
+        StartTime = (Get-Date).AddHours(-24)
+    } -MaxEvents 50 -ErrorAction Stop |
+    Where-Object {
+        $_.Message -match "lsass"
+    } | Select-Object -First 20
+
+    if ($events) {
+        $events | ForEach-Object {
+            $xml  = [xml]$_.ToXml()
+            $data = $xml.Event.EventData.Data
+            [PSCustomObject]@{
+                Time    = $_.TimeCreated
+                Subject = ($data | Where-Object { $_.Name -eq 'SubjectUserName' }).'#text'
+                Process = ($data | Where-Object { $_.Name -eq 'ProcessName' }).'#text'
+                Access  = ($data | Where-Object { $_.Name -eq 'AccessMask' }).'#text'
+            }
+        } | Format-Table -AutoSize
+    } else {
+        Write-Output "  No lsass handle access events in Security log (past 24h)."
+    }
+} catch {
+    Write-Output "  [!] Could not read Security log: $_"
+}
+Write-Output "===== END LSASS ACCESS ====="
+`
+  },
+
+  {
+    id:         "credential-files",
+    category:   "Credential Indicators",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "credential-files.ps1",
+    shortDesc:  "Hunt for SAM copies, NTDS.dit, and credential dump output",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Searches for copies of the SAM registry hive, NTDS.dit, credential dump output files (commonly named passwords.txt, hashes.txt, etc.), and credential vault artefacts outside their expected system locations. A copied SAM or NTDS is definitive proof of offline credential extraction.",
+    usage: `runscript -CloudFile="credential-indicators/credential-files.ps1"`,
+    source: `<#
+.SYNOPSIS
+    Credential Files - Hunt for SAM copies, NTDS.dit, and dump output files.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+#>
+
+Write-Output "===== CREDENTIAL FILE HUNT ====="
+
+$stagingPaths = @(
+    "C:\\Windows\\Temp","C:\\Temp","$env:TEMP","$env:APPDATA",
+    "$env:LOCALAPPDATA","$env:USERPROFILE","C:\\PerfLogs","C:\\ProgramData","C:\\Users"
+)
+
+# ── SAM Hive Copies ───────────────────────────────────────────────────────
+Write-Output "===== SAM HIVE COPIES ====="
+Write-Output "(Legitimate SAM lives only at C:\\Windows\\System32\\config\\SAM)"
+$samFound = 0
+foreach ($path in $stagingPaths) {
+    if (-not (Test-Path $path)) { continue }
+    Get-ChildItem -Path $path -Recurse -Depth 3 -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Name -ieq "SAM" -and
+            $_.FullName -notmatch "\\System32\\config\\"
+        } | ForEach-Object {
+            Write-Output "  [!!] $($_.FullName)  [$([math]::Round($_.Length/1KB,1)) KB]  Modified: $($_.LastWriteTime)"
+            $samFound++
+        }
+}
+if ($samFound -eq 0) { Write-Output "  No SAM copies found outside System32\\config." }
+
+# ── NTDS.dit Copies ───────────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== NTDS.DIT COPIES ====="
+Write-Output "(Legitimate NTDS.dit lives only at C:\\Windows\\NTDS\\ntds.dit on DCs)"
+$ntdsFound = 0
+foreach ($path in $stagingPaths) {
+    if (-not (Test-Path $path)) { continue }
+    Get-ChildItem -Path $path -Recurse -Depth 3 -Filter "ntds.dit" -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch "\\Windows\\NTDS\\" } |
+        ForEach-Object {
+            Write-Output "  [!!] $($_.FullName)  [$([math]::Round($_.Length/1MB,1)) MB]  Modified: $($_.LastWriteTime)"
+            $ntdsFound++
+        }
+}
+if ($ntdsFound -eq 0) { Write-Output "  No NTDS.dit copies found outside NTDS directory." }
+
+# ── Credential Dump Output File Patterns ──────────────────────────────────
+Write-Output ""
+Write-Output "===== SUSPECTED CREDENTIAL DUMP OUTPUT ====="
+$credPatterns = @("*password*","*passwd*","*hash*","*credential*","*ntlm*","*kerberos*","*lsass*","*dump*","*sekurlsa*")
+$credFound = 0
+foreach ($path in $stagingPaths) {
+    if (-not (Test-Path $path)) { continue }
+    foreach ($pattern in $credPatterns) {
+        Get-ChildItem -Path $path -Depth 2 -Filter $pattern -ErrorAction SilentlyContinue |
+            Where-Object {
+                $_.Extension -in @(".txt",".csv",".log",".out",".dmp",".xml") -and
+                $_.LastWriteTime -gt (Get-Date).AddDays(-7)
+            } | ForEach-Object {
+                Write-Output "  [!] $($_.FullName)  [$($_.Length) bytes]  Modified: $($_.LastWriteTime)"
+                $credFound++
+            }
+    }
+}
+if ($credFound -eq 0) { Write-Output "  No suspected credential dump output files found (last 7 days)." }
+
+# ── Windows Credential Manager ────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== WINDOWS CREDENTIAL MANAGER (cmdkey) ====="
+$cmdkeyOut = cmdkey /list 2>&1
+Write-Output ($cmdkeyOut -join "`n")
+
+Write-Output "===== END CREDENTIAL FILES ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ FILE SYSTEM IOCs
+  {
+    id:         "recent-file-changes",
+    category:   "File System IOCs",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "recent-file-changes.ps1",
+    shortDesc:  "Recently created/modified files in sensitive paths",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Scans key directories (System32, Program Files, ProgramData, user profiles) for files created or modified in the last 24 hours. Malware often writes to system directories to blend in with legitimate files. Sorts by modification time so newest artefacts appear first.",
+    params: [
+      { name: "HoursBack", type: "number", placeholder: "24", hint: "How many hours back to scan (default: 24)", required: false }
+    ],
+    usage: `runscript -CloudFile="file-system-iocs/recent-file-changes.ps1"`,
+    source: `<#
+.SYNOPSIS
+    Recent File Changes - Find files created or modified in the last N hours.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+#>
+
+param([int]$HoursBack = 24)
+
+$cutoff = (Get-Date).AddHours(-$HoursBack)
+Write-Output "===== RECENT FILE CHANGES (last $HoursBack hours, since $cutoff) ====="
+
+$scanPaths = @(
+    @{ Path = "C:\\Windows\\System32";      Depth = 1 },
+    @{ Path = "C:\\Windows\\SysWOW64";      Depth = 1 },
+    @{ Path = "C:\\Windows\\Temp";          Depth = 3 },
+    @{ Path = "C:\\ProgramData";            Depth = 3 },
+    @{ Path = "C:\\Users";                  Depth = 4 },
+    @{ Path = "C:\\Temp";                   Depth = 3 },
+    @{ Path = "C:\\PerfLogs";               Depth = 2 }
+)
+
+$suspiciousExts = @(".exe",".dll",".sys",".bat",".cmd",".ps1",".vbs",".js",".hta",".lnk",".scr")
+
+foreach ($entry in $scanPaths) {
+    if (-not (Test-Path $entry.Path)) { continue }
+    Write-Output ""
+    Write-Output "--- $($entry.Path) ---"
+
+    $changed = Get-ChildItem -Path $entry.Path -Recurse -Depth $entry.Depth -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -gt $cutoff -or $_.CreationTime -gt $cutoff } |
+        Sort-Object LastWriteTime -Descending
+
+    if (-not $changed) { Write-Output "  No changes found."; continue }
+
+    $changed | ForEach-Object {
+        $flag = if ($_.Extension -in $suspiciousExts) { "[!]" } else { "   " }
+        Write-Output ("  $flag {0,-55} {1,-24} {2,8} KB  {3}" -f
+            ($_.FullName -replace [regex]::Escape($entry.Path), ""),
+            $_.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+            [math]::Round($_.Length / 1KB, 1),
+            $_.Extension
+        )
+    }
+}
+
+Write-Output ""
+Write-Output "===== END RECENT FILE CHANGES ====="
+`
+  },
+
+  {
+    id:         "suspicious-archives",
+    category:   "File System IOCs",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name:       "suspicious-archives.ps1",
+    shortDesc:  "Large archives and data staging indicators",
+    irPhase:    "Identification",
+    permission: "Active Responder",
+    description: "Hunts for data exfiltration staging indicators: large archive files (.zip, .7z, .rar, .tar) in unusual locations, files with double extensions (malware evasion), unusually large files in temp directories, and clusters of files in staging paths created recently. These patterns frequently precede or follow data theft.",
+    usage: `runscript -CloudFile="file-system-iocs/suspicious-archives.ps1"`,
+    source: `<#
+.SYNOPSIS
+    Suspicious Archives - Hunt for data staging and exfil preparation indicators.
+
+.IR_PHASE        Identification
+.RTR_PERMISSION  Active Responder
+#>
+
+Write-Output "===== SUSPICIOUS ARCHIVE / DATA STAGING HUNT ====="
+
+$stagingPaths = @(
+    "C:\\Windows\\Temp","C:\\Temp","$env:TEMP","$env:APPDATA","$env:LOCALAPPDATA",
+    "$env:USERPROFILE\\Desktop","$env:USERPROFILE\\Downloads","C:\\PerfLogs",
+    "C:\\ProgramData","C:\\Intel","C:\\Recovery"
+)
+$archiveExts  = @(".zip",".7z",".rar",".tar",".gz",".bz2",".cab",".iso",".tar.gz")
+$thresholdMB  = 50  # Flag archives larger than this
+
+# ── Large Archives in Staging Paths ───────────────────────────────────────
+Write-Output "===== LARGE ARCHIVES (>${thresholdMB} MB) IN STAGING PATHS ====="
+$archivesFound = 0
+foreach ($path in $stagingPaths) {
+    if (-not (Test-Path $path)) { continue }
+    Get-ChildItem -Path $path -Recurse -Depth 3 -File -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.Length -gt ($thresholdMB * 1MB) -and
+            ($archiveExts | Where-Object { $_.Name.ToLower().EndsWith($_) })
+        } | Sort-Object Length -Descending |
+        ForEach-Object {
+            Write-Output ("  [!] {0,-70} {1,8} MB  Created: {2}" -f
+                $_.FullName,
+                [math]::Round($_.Length/1MB,1),
+                $_.CreationTime.ToString("yyyy-MM-dd HH:mm:ss"))
+            $archivesFound++
+        }
+}
+if ($archivesFound -eq 0) { Write-Output "  No large archives found in staging paths." }
+
+# ── Double Extension Files ────────────────────────────────────────────────
+Write-Output ""
+Write-Output "===== DOUBLE EXTENSION FILES ====="
+$doubleExtFound = 0
+foreach ($path in $stagingPaths) {
+    if (-not (Test-Path $path)) { continue }
+    Get-ChildItem -Path $path -Recurse -Depth 3 -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -match '\.[a-z]{2,4}\.[a-z]{2,4}$' -and $_.Name -notmatch '\.tar\.' } |
+        ForEach-Object {
+            Write-Output "  [!] $($_.FullName)  [$($_.Length) bytes]"
+            $doubleExtFound++
+        }
+}
+if ($doubleExtFound -eq 0) { Write-Output "  No double-extension files found." }
+
+# ── Any Archives in System Paths (always suspicious) ─────────────────────
+Write-Output ""
+Write-Output "===== ARCHIVES IN SYSTEM PATHS (always suspicious) ====="
+$sysArchiveFound = 0
+$sysPaths = @("C:\\Windows\\System32","C:\\Windows\\SysWOW64","C:\\Windows\\Tasks")
+foreach ($path in $sysPaths) {
+    if (-not (Test-Path $path)) { continue }
+    Get-ChildItem -Path $path -Recurse -Depth 2 -File -ErrorAction SilentlyContinue |
+        Where-Object { $archiveExts | Where-Object { $_.Name.ToLower().EndsWith($_) } } |
+        ForEach-Object {
+            Write-Output "  [!!] $($_.FullName)  [$($_.Length) bytes]"
+            $sysArchiveFound++
+        }
+}
+if ($sysArchiveFound -eq 0) { Write-Output "  No archives found in system paths." }
+
+# ── Large File Cluster (many new files in single dir = staging) ───────────
+Write-Output ""
+Write-Output "===== FILE CLUSTERS (>5 files created in last 48h in same directory) ====="
+$cutoff = (Get-Date).AddHours(-48)
+$grouped = foreach ($path in $stagingPaths) {
+    if (-not (Test-Path $path)) { continue }
+    Get-ChildItem -Path $path -Recurse -Depth 3 -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.CreationTime -gt $cutoff } |
+        Group-Object DirectoryName |
+        Where-Object { $_.Count -ge 5 }
+}
+if ($grouped) {
+    $grouped | ForEach-Object {
+        $totalMB = ($_.Group | Measure-Object -Property Length -Sum).Sum / 1MB
+        Write-Output ("  [!] {0,-65} {1,3} files  {2,7} MB total" -f
+            $_.Name, $_.Count, [math]::Round($totalMB,1))
+    }
+} else {
+    Write-Output "  No file clusters detected."
+}
+
+Write-Output "===== END SUSPICIOUS ARCHIVES ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ REMEDIATION
   {
     id:         "isolate-prep-checks",
     category:   "Remediation",
+    supportedPlatforms: ["crowdstrike"],  // CS-specific: checks CSFalconService + references Falcon Console
     name:       "isolate-prep-checks.ps1",
     shortDesc:  "Pre-isolation checklist — GO / CAUTION / NO-GO",
     irPhase:    "Containment",

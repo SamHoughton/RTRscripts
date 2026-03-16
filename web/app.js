@@ -14,13 +14,105 @@
  */
 
 /* ═══════════════════════════════════ STATE ══════════════════════════════ */
-let editor        = null;
-let currentScript = null;
-let originalSrc   = "";
-let activeFilter  = "all";
-let paramValues   = {};   // current values for the param form
+let editor          = null;
+let currentScript   = null;
+let originalSrc     = "";
+let activeFilter    = "all";
+let activePlatform  = "crowdstrike";
+let paramValues     = {};   // current values for the param form
 
-const CATEGORIES = ["Triage", "Process Investigation", "Artefact Collection", "Remediation"];
+const CATEGORIES = [
+  "Triage", "Process Investigation", "Artefact Collection",
+  "Persistence", "Lateral Movement", "Credential Indicators",
+  "File System IOCs", "Remediation",
+];
+
+/* ═══════════════════════════════════ PLATFORM DEFINITIONS ══════════════ */
+
+const PLATFORMS = {
+  crowdstrike: {
+    id:         "crowdstrike",
+    label:      "CrowdStrike",
+    color:      "#e8002d",
+    generateCmd(script, paramStr) {
+      const folder = script.category.toLowerCase().replace(/ /g, "-");
+      const base   = `runscript -CloudFile="${folder}/${script.name}"`;
+      return paramStr ? `${base} \\\n  -CommandLine="${paramStr}"` : base;
+    },
+    quickref: [
+      { label: "Run script",  cmd: `runscript -CloudFile="category/name.ps1"` },
+      { label: "Get file",    cmd: `get C:\\path\\to\\file` },
+      { label: "Put file",    cmd: `put C:\\destination` },
+      { label: "List files",  cmd: `ls C:\\Windows\\Temp` },
+    ],
+  },
+  sentinelone: {
+    id:         "sentinelone",
+    label:      "SentinelOne",
+    color:      "#7c3aed",
+    generateCmd(script) {
+      return `// SentinelOne Singularity:\n// Sentinels → select host → Actions\n// → Run Script → upload ${script.name}`;
+    },
+    quickref: [
+      { label: "Run script",   cmd: `Sentinels → host → Actions → Run Script` },
+      { label: "Fetch file",   cmd: `Actions → Fetch Files → enter path` },
+      { label: "Remote Shell", cmd: `Actions → Remote Shell → connect` },
+      { label: "Kill process", cmd: `Actions → Kill Process → enter PID` },
+    ],
+  },
+  defender: {
+    id:         "defender",
+    label:      "Defender",
+    color:      "#0078d4",
+    generateCmd(script) {
+      return `// MDE Live Response:\nputfile ${script.name}\nrun ${script.name}`;
+    },
+    quickref: [
+      { label: "Run script",    cmd: `putfile script.ps1\nrun script.ps1` },
+      { label: "Get file",      cmd: `getfile C:\\path\\to\\file` },
+      { label: "List directory",cmd: `dir C:\\Windows\\Temp` },
+      { label: "List processes",cmd: `processes` },
+    ],
+  },
+};
+
+function setPlatform(id) {
+  activePlatform = id;
+
+  // Update header buttons
+  document.querySelectorAll(".platform-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.platform === id);
+  });
+
+  // Update status bar indicator
+  const p = PLATFORMS[id];
+  const dot = document.getElementById("platform-dot");
+  const lbl = document.getElementById("platform-label");
+  if (dot) dot.style.background = p.color;
+  if (lbl) lbl.textContent = p.label;
+
+  // Refresh UI
+  updateQuickRef();
+  if (currentScript) updateInfoPanel(currentScript);
+  renderSidebar(activeFilter, document.getElementById("search-input").value);
+}
+
+function updateQuickRef() {
+  const qr  = document.getElementById("quick-ref");
+  if (!qr) return;
+  const ref = PLATFORMS[activePlatform].quickref;
+  qr.innerHTML = ref.map(item =>
+    `<div class="qr-item"><span class="qr-label">${item.label}</span><code>${escapeHtml(item.cmd)}</code></div>`
+  ).join("");
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+document.querySelectorAll(".platform-btn").forEach(btn => {
+  btn.addEventListener("click", () => setPlatform(btn.dataset.platform));
+});
 
 /* ═══════════════════════════════════ SIDEBAR ════════════════════════════ */
 
@@ -50,18 +142,27 @@ function renderSidebar(filter = "all", query = "") {
     nav.appendChild(label);
 
     scripts.forEach(s => {
+      const supported = !s.supportedPlatforms || s.supportedPlatforms.includes(activePlatform);
       const item = document.createElement("div");
-      item.className = "nav-item" + (currentScript?.id === s.id ? " active" : "");
+      item.className = "nav-item" +
+        (currentScript?.id === s.id ? " active" : "") +
+        (supported ? "" : " platform-unavailable");
       item.dataset.id = s.id;
       const phases = s.irPhase.split(" / ").map(p => p.trim());
       const phaseClass = phases.length > 1 ? "phase-multi" : `phase-${phases[0]}`;
+      const badge = !supported
+        ? `<span class="nav-item-platform-badge">CS only</span>`
+        : "";
       item.innerHTML = `
         <div class="nav-item-icon ${phaseClass}"></div>
         <div class="nav-item-body">
           <div class="nav-item-name">${s.name}</div>
           <div class="nav-item-desc">${s.shortDesc}</div>
+          ${badge}
         </div>`;
-      item.addEventListener("click", () => loadScriptWithTransition(s));
+      if (supported) {
+        item.addEventListener("click", () => loadScriptWithTransition(s));
+      }
       nav.appendChild(item);
     });
   });
@@ -139,7 +240,16 @@ function updateMetaBar(script) {
 
 function updateInfoPanel(script) {
   document.getElementById("info-description").textContent = script.description;
-  document.getElementById("info-usage").textContent = script.usage;
+
+  // Platform-specific usage text
+  let usageText;
+  if (activePlatform === "crowdstrike") {
+    usageText = script.usage;
+  } else {
+    usageText = PLATFORMS[activePlatform].generateCmd(script, null);
+  }
+  document.getElementById("info-usage").textContent = usageText;
+
   document.querySelectorAll(".checklist input[type='checkbox']").forEach(cb => { cb.checked = false; });
 
   const paramSection = document.getElementById("param-section");
@@ -150,6 +260,8 @@ function updateInfoPanel(script) {
     paramSection.style.display = "none";
   }
 }
+
+
 
 /* ═══════════════════════════════════ PARAM FORM ═════════════════════════ */
 
@@ -229,22 +341,13 @@ function updateGeneratedCommand(script) {
     } else if (p.type === "number") {
       if (val !== "") parts.push(`-${p.name} ${val}`);
     } else {
-      // Wrap strings in single quotes
       const safe = String(val).replace(/'/g, "''");
       if (safe !== "") parts.push(`-${p.name} '${safe}'`);
     }
   });
 
-  const categoryPath = script.category.toLowerCase().replace(/ /g, "-");
-  const cloudFile    = `${categoryPath}/${script.name}`;
-  let   cmd;
-
-  if (parts.length > 0) {
-    cmd = `runscript -CloudFile="${cloudFile}" \\\n  -CommandLine="${parts.join(" ")}"`;
-  } else {
-    cmd = `runscript -CloudFile="${cloudFile}"`;
-  }
-
+  const paramStr = parts.join(" ");
+  const cmd = PLATFORMS[activePlatform].generateCmd(script, paramStr || null);
   document.getElementById("param-cmd").textContent = cmd;
 }
 
@@ -419,6 +522,10 @@ document.getElementById("btn-export-all").addEventListener("click", async () => 
     "Triage":                 "triage",
     "Process Investigation":  "process-investigation",
     "Artefact Collection":    "artefact-collection",
+    "Persistence":            "persistence",
+    "Lateral Movement":       "lateral-movement",
+    "Credential Indicators":  "credential-indicators",
+    "File System IOCs":       "file-system-iocs",
     "Remediation":            "remediation",
   };
 
@@ -659,4 +766,5 @@ function initMonaco() {
 /* ═══════════════════════════════════ BOOT ═══════════════════════════════ */
 
 renderSidebar("all", "");
+setPlatform("crowdstrike");   // initialise platform indicator + quick ref
 initMonaco();
