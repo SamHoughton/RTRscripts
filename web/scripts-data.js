@@ -14,6 +14,7 @@ window.RTR_SCRIPTS = [
     id:         "host-summary",
     category:   "Triage",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "host-summary.ps1",
     shortDesc:  "OS, uptime, local admins, AV, patches",
     irPhase:    "Identification",
@@ -85,6 +86,7 @@ Write-Output "===== END HOST SUMMARY ====="
     id:         "active-connections",
     category:   "Triage",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "active-connections.ps1",
     shortDesc:  "TCP/UDP sockets mapped to owning process",
     irPhase:    "Identification",
@@ -155,6 +157,7 @@ Write-Output "===== END ACTIVE CONNECTIONS ====="
     id:         "logged-on-users",
     category:   "Triage",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "logged-on-users.ps1",
     shortDesc:  "Active sessions + recent logon events",
     irPhase:    "Identification",
@@ -235,6 +238,7 @@ Write-Output "===== END LOGGED-ON USERS ====="
     id:         "process-tree",
     category:   "Process Investigation",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "process-tree.ps1",
     shortDesc:  "Full parent-child hierarchy + suspicious pairs",
     irPhase:    "Identification",
@@ -311,6 +315,7 @@ Write-Output "===== END PROCESS TREE ====="
     id:         "unsigned-processes",
     category:   "Process Investigation",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "unsigned-processes.ps1",
     shortDesc:  "Find running processes without valid code signing",
     irPhase:    "Identification",
@@ -394,6 +399,7 @@ Write-Output "===== END UNSIGNED PROCESSES ====="
     id:         "prefetch-dump",
     category:   "Artefact Collection",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "prefetch-dump.ps1",
     shortDesc:  "Prefetch execution history + IOC name matching",
     irPhase:    "Identification",
@@ -480,6 +486,7 @@ Write-Output "===== END PREFETCH DUMP ====="
     id:         "browser-history",
     category:   "Artefact Collection",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "browser-history.ps1",
     shortDesc:  "Chrome, Edge, Firefox history from all profiles",
     irPhase:    "Identification",
@@ -572,6 +579,7 @@ Write-Output "===== END BROWSER HISTORY ====="
     id:         "kill-process",
     category:   "Remediation",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "kill-process.ps1",
     shortDesc:  "Kill process by PID/name — captures evidence first",
     irPhase:    "Containment",
@@ -680,6 +688,7 @@ Write-Output "===== END KILL PROCESS ====="
     id:         "scheduled-tasks",
     category:   "Persistence",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "scheduled-tasks.ps1",
     shortDesc:  "All scheduled tasks with encoded/LOLBin/user-path indicators",
     irPhase:    "Identification",
@@ -767,6 +776,7 @@ Write-Output "===== END SCHEDULED TASKS ====="
     id:         "startup-entries",
     category:   "Persistence",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "startup-entries.ps1",
     shortDesc:  "Run keys, startup folders, IFEO, and autostart services",
     irPhase:    "Identification",
@@ -866,6 +876,7 @@ Write-Output "===== END STARTUP ENTRIES ====="
     id:         "wmi-subscriptions",
     category:   "Persistence",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "wmi-subscriptions.ps1",
     shortDesc:  "WMI event filters, consumers, and bindings",
     irPhase:    "Identification",
@@ -943,6 +954,7 @@ Write-Output "===== END WMI SUBSCRIPTIONS ====="
     id:         "smb-sessions",
     category:   "Lateral Movement",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "smb-sessions.ps1",
     shortDesc:  "Active SMB sessions, open files, and shares",
     irPhase:    "Identification",
@@ -1047,6 +1059,7 @@ Write-Output "===== END SMB SESSIONS ====="
     id:         "psremoting-activity",
     category:   "Lateral Movement",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "psremoting-activity.ps1",
     shortDesc:  "WinRM status, remote sessions, and PS remoting events",
     irPhase:    "Identification",
@@ -1140,6 +1153,7 @@ Write-Output "===== END PSREMOTING ACTIVITY ====="
     id:         "lsass-access",
     category:   "Credential Indicators",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "lsass-access.ps1",
     shortDesc:  "LSASS handle access events and memory dump indicators",
     irPhase:    "Identification",
@@ -1260,6 +1274,7 @@ Write-Output "===== END LSASS ACCESS ====="
     id:         "credential-files",
     category:   "Credential Indicators",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "credential-files.ps1",
     shortDesc:  "Hunt for SAM copies, NTDS.dit, and credential dump output",
     irPhase:    "Identification",
@@ -1349,6 +1364,7 @@ Write-Output "===== END CREDENTIAL FILES ====="
     id:         "recent-file-changes",
     category:   "File System IOCs",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "recent-file-changes.ps1",
     shortDesc:  "Recently created/modified files in sensitive paths",
     irPhase:    "Identification",
@@ -1414,6 +1430,7 @@ Write-Output "===== END RECENT FILE CHANGES ====="
     id:         "suspicious-archives",
     category:   "File System IOCs",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    os: "windows",
     name:       "suspicious-archives.ps1",
     shortDesc:  "Large archives and data staging indicators",
     irPhase:    "Identification",
@@ -1518,7 +1535,8 @@ Write-Output "===== END SUSPICIOUS ARCHIVES ====="
   {
     id:         "isolate-prep-checks",
     category:   "Remediation",
-    supportedPlatforms: ["crowdstrike"],  // CS-specific: checks CSFalconService + references Falcon Console
+    supportedPlatforms: ["crowdstrike"],  // CS-specific
+    os: "windows",
     name:       "isolate-prep-checks.ps1",
     shortDesc:  "Pre-isolation checklist — GO / CAUTION / NO-GO",
     irPhase:    "Containment",
@@ -1618,6 +1636,542 @@ if ($blockers.Count -gt 0) {
     Write-Output "Proceed: Falcon Console → Hosts → [host] → Isolate Host"
 }
 Write-Output "===== END ISOLATE PREP ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ macOS — TRIAGE
+  {
+    id: "macos-host-summary",
+    category: "Triage",
+    os: "macos",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "host-summary.sh",
+    shortDesc: "OS version, uptime, users, EDR agents, SIP + FileVault",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "macOS rapid triage snapshot: OS/build version, architecture, last boot, currently logged-on users, local admin group, network interfaces, running EDR agents (Falcon, SentinelOne, Defender), FileVault encryption status, and SIP state.",
+    usage: `runscript -CloudFile="macos/triage/host-summary.sh"`,
+    source: `#!/bin/bash
+# Host Summary - macOS rapid triage snapshot.
+# IR Phase: Identification | Permission: Active Responder
+
+echo "===== HOST SUMMARY ====="
+echo "Hostname     : $(hostname)"
+echo "OS Version   : $(sw_vers -productName) $(sw_vers -productVersion) (Build $(sw_vers -buildVersion))"
+echo "Architecture : $(uname -m)"
+echo "Kernel       : $(uname -r)"
+echo "Serial No.   : $(system_profiler SPHardwareDataType 2>/dev/null | awk '/Serial Number/ {print $NF}')"
+echo "Model        : $(system_profiler SPHardwareDataType 2>/dev/null | awk -F': ' '/Model Name/ {print $2}')"
+echo "Current Time : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+echo ""
+
+echo "===== UPTIME ====="
+uptime
+BOOT_TIME=$(sysctl -n kern.boottime 2>/dev/null | awk -F'[={,]' '{print $2}' | xargs -I{} date -r {} '+%Y-%m-%d %H:%M:%S' 2>/dev/null)
+echo "Last Boot    : \${BOOT_TIME:-unknown}"
+echo ""
+
+echo "===== LOGGED-ON USERS ====="
+who
+echo ""
+
+echo "===== LOCAL ADMIN USERS ====="
+dscl . -read /Groups/admin GroupMembership 2>/dev/null | sed 's/GroupMembership: //'
+echo ""
+
+echo "===== NETWORK INTERFACES ====="
+ifconfig | awk '/^[a-z]/{iface=$1} /inet /{print iface, $2}'
+echo ""
+
+echo "===== SECURITY AGENTS ====="
+declare -A agents=(
+  ["CrowdStrike"]="com.crowdstrike.falcond"
+  ["SentinelOne"]="com.sentinelone.sentinel-agent"
+  ["Microsoft Defender"]="com.microsoft.wdav.daemon"
+)
+for name in "\${!agents[@]}"; do
+  if launchctl list 2>/dev/null | grep -q "\${agents[$name]}"; then
+    echo "  [+] $name is running (\${agents[$name]})"
+  fi
+done
+echo ""
+
+echo "===== FILEVAULT STATUS ====="
+fdesetup status 2>/dev/null || echo "  fdesetup not available"
+echo ""
+
+echo "===== SYSTEM INTEGRITY PROTECTION (SIP) ====="
+csrutil status 2>/dev/null || echo "  csrutil not available"
+
+echo "===== END HOST SUMMARY ====="
+`
+  },
+
+  {
+    id: "macos-active-connections",
+    category: "Triage",
+    os: "macos",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "active-connections.sh",
+    shortDesc: "TCP/UDP sockets mapped to process via lsof",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "Maps every established and listening socket to its owning process using lsof. Also shows DNS config, default routes, ARP cache, and application firewall state. macOS equivalent of netstat -b.",
+    usage: `runscript -CloudFile="macos/triage/active-connections.sh"`,
+    source: `#!/bin/bash
+# Active Network Connections - macOS
+# IR Phase: Identification | Permission: Active Responder
+
+echo "===== ACTIVE NETWORK CONNECTIONS ====="
+echo "Host: $(hostname) | Time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+echo "===== ESTABLISHED CONNECTIONS ====="
+lsof -i -nP 2>/dev/null | awk 'NR==1 || /ESTABLISHED/'
+echo ""
+
+echo "===== LISTENING PORTS ====="
+lsof -i -nP 2>/dev/null | awk 'NR==1 || /LISTEN/'
+echo ""
+
+echo "===== DNS CONFIGURATION ====="
+scutil --dns 2>/dev/null | grep -E "nameserver|domain" | head -10
+echo ""
+
+echo "===== DEFAULT ROUTES ====="
+netstat -rn 2>/dev/null | grep -E "^default"
+echo ""
+
+echo "===== ARP CACHE ====="
+arp -a 2>/dev/null
+echo ""
+
+echo "===== APPLICATION FIREWALL STATUS ====="
+/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate 2>/dev/null
+/usr/libexec/ApplicationFirewall/socketfilterfw --getstealthmode 2>/dev/null
+
+echo "===== END ACTIVE CONNECTIONS ====="
+`
+  },
+
+  {
+    id: "macos-logged-on-users",
+    category: "Triage",
+    os: "macos",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "logged-on-users.sh",
+    shortDesc: "Current sessions, recent logins, failed auth events",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "Shows current interactive sessions (who/w), recent login history, failed authentication events from the unified log, active SSH sessions, and users with valid login shells. Use this before isolating to confirm whether a legitimate user is active.",
+    usage: `runscript -CloudFile="macos/triage/logged-on-users.sh"`,
+    source: `#!/bin/bash
+# Logged-On Users - macOS
+# IR Phase: Identification | Permission: Active Responder
+
+echo "===== LOGGED-ON USER ANALYSIS ====="
+echo "Host: $(hostname) | Time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+echo "===== CURRENT SESSIONS ====="
+who
+echo ""
+
+echo "===== ACTIVE SESSIONS (w) ====="
+w 2>/dev/null
+echo ""
+
+echo "===== RECENT LOGINS (last 20) ====="
+last -20 2>/dev/null
+echo ""
+
+echo "===== FAILED AUTH ATTEMPTS (last 24h) ====="
+log show --predicate 'process == "loginwindow" && eventMessage CONTAINS "failed"' \
+  --last 24h 2>/dev/null | tail -20 || echo "  No auth failure log access"
+echo ""
+
+echo "===== ACTIVE SSH CONNECTIONS ====="
+lsof -i :22 -nP 2>/dev/null | grep ESTABLISHED || echo "  None"
+echo ""
+
+echo "===== CONSOLE USER ====="
+stat -f '%Su' /dev/console 2>/dev/null
+echo ""
+
+echo "===== USERS WITH LOGIN SHELLS ====="
+dscl . list /Users UserShell 2>/dev/null | grep -v "nologin\|false\|git-shell" | \
+  awk '{printf "  %-20s %s\n", $1, $2}'
+
+echo "===== END LOGGED-ON USERS ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ macOS — PERSISTENCE
+  {
+    id: "macos-launchd-entries",
+    category: "Persistence",
+    os: "macos",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "launchd-entries.sh",
+    shortDesc: "LaunchDaemons, LaunchAgents, login items, cron",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "Enumerates all LaunchDaemon and LaunchAgent plists (system and user-level), flags entries not from known Apple/vendor prefixes, checks login items, crontabs, and periodic task scripts. LaunchDaemons are the primary persistence mechanism on macOS — any unknown entry is high priority.",
+    usage: `runscript -CloudFile="macos/persistence/launchd-entries.sh"`,
+    source: `#!/bin/bash
+# LaunchD Persistence - macOS
+# IR Phase: Identification | Permission: Active Responder
+
+echo "===== LAUNCHD PERSISTENCE ANALYSIS ====="
+echo "Host: $(hostname) | Time: $(date '+%Y-%m-%d %H:%M:%S')"
+
+SAFE_PREFIXES="com.apple com.crowdstrike com.sentinelone com.microsoft com.google com.adobe com.zoom"
+
+flag_entry() {
+  local name="$1"
+  for prefix in $SAFE_PREFIXES; do
+    [[ "$name" == $prefix* ]] && return 1
+  done
+  return 0
+}
+
+scan_plist_dir() {
+  local dir="$1" label="$2"
+  echo ""
+  echo "===== $label ====="
+  [ -d "$dir" ] || { echo "  [not found]"; return; }
+  for plist in "$dir"/*.plist; do
+    [ -f "$plist" ] || continue
+    lv=$(defaults read "$plist" Label 2>/dev/null || echo "[no label]")
+    prog=$(defaults read "$plist" Program 2>/dev/null || \
+           defaults read "$plist" ProgramArguments 2>/dev/null | head -1 | tr -d '(",' || echo "")
+    mtime=$(stat -f "%Sm" -t "%Y-%m-%d" "$plist" 2>/dev/null)
+    flag_entry "$lv" && flag="[!]" || flag="   "
+    printf "  %s %-50s %s  [%s]\n" "$flag" "$lv" "$prog" "$mtime"
+  done
+}
+
+scan_plist_dir "/Library/LaunchDaemons"     "LAUNCH DAEMONS (System)"
+scan_plist_dir "/Library/LaunchAgents"      "LAUNCH AGENTS (System)"
+scan_plist_dir "$HOME/Library/LaunchAgents" "LAUNCH AGENTS (User)"
+
+echo ""
+echo "===== LOGIN ITEMS ====="
+osascript -e 'tell application "System Events" to get the name of every login item' 2>/dev/null
+
+echo ""
+echo "===== CRON JOBS ====="
+crontab -l 2>/dev/null || echo "  [none]"
+
+echo "===== END LAUNCHD PERSISTENCE ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ macOS — FILE SYSTEM IOCs
+  {
+    id: "macos-recent-file-changes",
+    category: "File System IOCs",
+    os: "macos",
+    supportedPlatforms: ["crowdstrike","sentinelone","defender"],
+    name: "recent-file-changes.sh",
+    shortDesc: "Recently modified files in LaunchD, tmp, Downloads, local/bin",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "Scans LaunchDaemon/Agent directories, /tmp, /usr/local/bin, ~/Downloads, and ~/Desktop for recently created or modified files. Flags executable scripts (.sh, .py, .dylib, .kext). Also hunts for world-writable files and recently modified executables in /usr/local.",
+    params: [
+      { name: "Hours", type: "number", placeholder: "24", hint: "Hours back to scan (passed as $1, default: 24)", required: false }
+    ],
+    usage: `runscript -CloudFile="macos/file-system-iocs/recent-file-changes.sh"`,
+    source: `#!/bin/bash
+# Recent File Changes - macOS
+# IR Phase: Identification | Permission: Active Responder
+# Usage: run script.sh [HoursBack]
+
+HOURS=\${1:-24}
+echo "===== RECENT FILE CHANGES (last \${HOURS}h) ====="
+echo "Host: $(hostname) | Since: $(date -v-\${HOURS}H '+%Y-%m-%d %H:%M:%S')"
+
+SUSPICIOUS_EXTS="\\.sh|\\.py|\\.rb|\\.pl|\\.dylib|\\.so|\\.kext|\\.pkg|\\.scpt|\\.osax"
+
+touch -t "$(date -v-\${HOURS}H '+%Y%m%d%H%M.%S')" /tmp/.rtr_time_marker 2>/dev/null
+
+scan_dir() {
+  local dir="$1" depth="\${2:-3}"
+  [ -d "$dir" ] || return
+  echo ""
+  echo "--- $dir ---"
+  find "$dir" -maxdepth "$depth" -type f -newer /tmp/.rtr_time_marker \
+    -not -path "*/\\.*" 2>/dev/null | sort | while read -r f; do
+      size=$(stat -f "%z" "$f" 2>/dev/null)
+      mtime=$(stat -f "%Sm" -t "%Y-%m-%d %H:%M:%S" "$f" 2>/dev/null)
+      echo "$f" | grep -qE "$SUSPICIOUS_EXTS" && flag="[!]" || flag="   "
+      printf "  %s %-55s %8d bytes  %s\n" "$flag" "\${f:$((\${#dir}+1))}" "\${size:-0}" "$mtime"
+  done
+}
+
+scan_dir "/Library/LaunchDaemons"       2
+scan_dir "/Library/LaunchAgents"        2
+scan_dir "$HOME/Library/LaunchAgents"   2
+scan_dir "/private/tmp"                 3
+scan_dir "/usr/local/bin"               2
+scan_dir "$HOME/Downloads"              2
+scan_dir "$HOME/Desktop"                2
+
+rm -f /tmp/.rtr_time_marker
+echo "===== END RECENT FILE CHANGES ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ Linux — TRIAGE
+  {
+    id: "linux-host-summary",
+    category: "Triage",
+    os: "linux",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "host-summary.sh",
+    shortDesc: "Distro, kernel, uptime, users, network, EDR agents",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "Linux rapid triage snapshot: distro/kernel, architecture, hardware info (dmidecode), last boot, current users, privileged accounts (uid 0 + sudo/wheel group), network interfaces, and running EDR agents (Falcon, SentinelOne).",
+    usage: `runscript -CloudFile="linux/triage/host-summary.sh"`,
+    source: `#!/bin/bash
+# Host Summary - Linux rapid triage snapshot.
+# IR Phase: Identification | Permission: Active Responder
+
+echo "===== HOST SUMMARY ====="
+echo "Hostname     : $(hostname)"
+echo "Current Time : $(date '+%Y-%m-%d %H:%M:%S %Z')"
+echo ""
+
+echo "===== OS / KERNEL ====="
+[ -f /etc/os-release ] && . /etc/os-release && echo "  Distribution : $PRETTY_NAME"
+echo "  Kernel       : $(uname -r)"
+echo "  Architecture : $(uname -m)"
+echo ""
+
+echo "===== HARDWARE ====="
+cat /sys/class/dmi/id/sys_vendor 2>/dev/null | xargs -I{} echo "  Vendor : {}"
+cat /sys/class/dmi/id/product_name 2>/dev/null | xargs -I{} echo "  Model  : {}"
+echo ""
+
+echo "===== UPTIME ====="
+uptime
+echo "  Last boot: $(uptime -s 2>/dev/null || who -b 2>/dev/null | awk '{print $3, $4}')"
+echo ""
+
+echo "===== NETWORK INTERFACES ====="
+if command -v ip &>/dev/null; then
+  ip addr show | awk '/^[0-9]/{iface=$2} /inet /{printf "  %-15s %s\n", iface, $2}'
+else
+  ifconfig 2>/dev/null | grep -E "^[a-z]|inet " | awk '/^[a-z]/{i=$1} /inet /{print "  " i, $2}'
+fi
+echo ""
+
+echo "===== LOGGED-ON USERS ====="
+who
+echo ""
+
+echo "===== PRIVILEGED USERS ====="
+echo "  UID 0 accounts:"
+awk -F: '$3 == 0 {print "   ", $1}' /etc/passwd
+echo "  sudo/wheel group:"
+getent group sudo 2>/dev/null || getent group wheel 2>/dev/null
+echo ""
+
+echo "===== SECURITY AGENTS ====="
+for agent in falcon-sensor sentinelone wdavdaemon cbdaemon; do
+  pgrep -x "$agent" &>/dev/null && echo "  [+] $agent is running"
+done
+
+echo "===== END HOST SUMMARY ====="
+`
+  },
+
+  {
+    id: "linux-active-connections",
+    category: "Triage",
+    os: "linux",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "active-connections.sh",
+    shortDesc: "Sockets with process info via ss/lsof, firewall state",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "Maps all established and listening sockets to their owning processes using ss (preferred) or netstat. Shows DNS config, default routes, ARP/neighbour cache, and firewall status (ufw/firewalld/iptables). Linux equivalent of netstat -bntp.",
+    usage: `runscript -CloudFile="linux/triage/active-connections.sh"`,
+    source: `#!/bin/bash
+# Active Network Connections - Linux
+# IR Phase: Identification | Permission: Active Responder
+
+echo "===== ACTIVE NETWORK CONNECTIONS ====="
+echo "Host: $(hostname) | Time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+if command -v ss &>/dev/null; then
+  echo "===== ESTABLISHED CONNECTIONS (ss) ====="
+  ss -antp state established 2>/dev/null | head -50
+  echo ""
+  echo "===== LISTENING PORTS (ss) ====="
+  ss -lntp 2>/dev/null
+else
+  echo "===== CONNECTIONS (netstat) ====="
+  netstat -antp 2>/dev/null | grep -E "ESTABLISHED|LISTEN" | head -50
+fi
+echo ""
+
+echo "===== PROCESS-TO-PORT MAP (lsof) ====="
+lsof -i -nP 2>/dev/null | grep -E "ESTABLISHED|LISTEN" | head -40 || echo "  lsof not available"
+echo ""
+
+echo "===== DNS CONFIGURATION ====="
+cat /etc/resolv.conf 2>/dev/null
+echo ""
+
+echo "===== DEFAULT ROUTES ====="
+command -v ip &>/dev/null && ip route show default || route -n 2>/dev/null | grep '^0\\.0\\.0\\.0'
+echo ""
+
+echo "===== ARP / NEIGHBOUR CACHE ====="
+command -v ip &>/dev/null && ip neigh show || arp -n 2>/dev/null
+echo ""
+
+echo "===== FIREWALL STATUS ====="
+if command -v ufw &>/dev/null; then
+  ufw status 2>/dev/null
+elif command -v firewall-cmd &>/dev/null; then
+  firewall-cmd --state 2>/dev/null && firewall-cmd --list-all 2>/dev/null
+elif command -v iptables &>/dev/null; then
+  iptables -L -n --line-numbers 2>/dev/null | head -40
+fi
+
+echo "===== END ACTIVE CONNECTIONS ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ Linux — PERSISTENCE
+  {
+    id: "linux-systemd-services",
+    category: "Persistence",
+    os: "linux",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "systemd-services.sh",
+    shortDesc: "Systemd units from non-standard paths, timers, cron, rc.local",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "Finds systemd services whose ExecStart binary is not in standard system paths (/usr, /bin, /sbin, /lib). Also lists all enabled services, active timers, custom unit files in /etc/systemd/system, crontabs, rc.local, SysV init scripts not owned by any package, and at jobs.",
+    usage: `runscript -CloudFile="linux/persistence/systemd-services.sh"`,
+    source: `#!/bin/bash
+# Systemd Persistence - Linux
+# IR Phase: Identification | Permission: Active Responder
+
+echo "===== LINUX PERSISTENCE ANALYSIS ====="
+echo "Host: $(hostname) | Time: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+echo "===== SYSTEMD SERVICES WITH NON-STANDARD EXEC PATHS ====="
+systemctl list-units --type=service --all --no-pager 2>/dev/null | \
+  awk '/\\.service/ {print $1}' | while read -r svc; do
+    execstart=$(systemctl show "$svc" -p ExecStart 2>/dev/null | grep -oP 'path=\\K[^;]+' | head -1)
+    if [ -n "$execstart" ] && \
+       ! echo "$execstart" | grep -qE "^/usr|^/bin|^/sbin|^/lib|^/opt/(crowdstrike|sentinel|microsoft)"; then
+      state=$(systemctl is-active "$svc" 2>/dev/null)
+      printf "  [!] %-45s %-10s %s\n" "$svc" "$state" "$execstart"
+    fi
+done
+echo ""
+
+echo "===== ALL ENABLED SERVICES ====="
+systemctl list-unit-files --type=service --state=enabled --no-pager 2>/dev/null | head -60
+echo ""
+
+echo "===== SYSTEMD TIMERS ====="
+systemctl list-timers --all --no-pager 2>/dev/null
+echo ""
+
+echo "===== CUSTOM UNIT FILES (/etc/systemd/system) ====="
+ls -la /etc/systemd/system/*.service /etc/systemd/system/*.timer 2>/dev/null
+echo ""
+
+echo "===== ROOT CRONTAB ====="
+crontab -u root -l 2>/dev/null || echo "  [none or no access]"
+echo ""
+
+echo "===== /etc/crontab ====="
+cat /etc/crontab 2>/dev/null
+
+echo ""
+echo "===== /etc/cron.d/ ====="
+ls -la /etc/cron.d/ 2>/dev/null
+
+echo ""
+echo "===== RC.LOCAL ====="
+cat /etc/rc.local 2>/dev/null || echo "  Not present"
+
+echo ""
+echo "===== AT JOBS ====="
+atq 2>/dev/null || echo "  [none]"
+
+echo "===== END SYSTEMD PERSISTENCE ====="
+`
+  },
+
+  // ══════════════════════════════════════════════════════ Linux — FILE SYSTEM IOCs
+  {
+    id: "linux-recent-file-changes",
+    category: "File System IOCs",
+    os: "linux",
+    supportedPlatforms: ["crowdstrike","sentinelone"],
+    name: "recent-file-changes.sh",
+    shortDesc: "Modified files in /tmp, /etc, systemd paths, /usr/local, home dirs",
+    irPhase: "Identification",
+    permission: "Active Responder",
+    description: "Scans /tmp, /var/tmp, /dev/shm, /etc, systemd unit paths, /usr/local, and home directories for recently modified files. Flags setuid/setgid binaries changed recently (privilege escalation indicator) and modifications to /etc/passwd, /etc/shadow, and sudoers.",
+    params: [
+      { name: "Hours", type: "number", placeholder: "24", hint: "Hours back to scan (passed as $1, default: 24)", required: false }
+    ],
+    usage: `runscript -CloudFile="linux/file-system-iocs/recent-file-changes.sh"`,
+    source: `#!/bin/bash
+# Recent File Changes - Linux
+# IR Phase: Identification | Permission: Active Responder
+
+HOURS=\${1:-24}
+MINUTES=$(( HOURS * 60 ))
+echo "===== RECENT FILE CHANGES (last \${HOURS}h) ====="
+echo "Host: $(hostname)"
+
+SUSPICIOUS_EXTS="\\.( sh|py|rb|pl|so|ko|elf|out|cgi|php|jsp)$"
+
+scan_dir() {
+  local dir="$1" depth="\${2:-3}"
+  [ -d "$dir" ] || return
+  echo ""; echo "--- $dir ---"
+  find "$dir" -maxdepth "$depth" -type f -mmin "-\${MINUTES}" 2>/dev/null | sort | while read -r f; do
+    size=$(stat -c "%s" "$f" 2>/dev/null || echo 0)
+    mtime=$(stat -c "%y" "$f" 2>/dev/null | cut -d. -f1)
+    echo "$f" | grep -qE "\\.sh$|\\.py$|\\.rb$|\\.pl$|\\.so$|\\.ko$" && flag="[!]" || flag="   "
+    printf "  %s %-60s %8d bytes  %s\n" "$flag" "\${f:$((\${#dir}+1))}" "$size" "$mtime"
+  done
+}
+
+scan_dir "/tmp" 3; scan_dir "/var/tmp" 3; scan_dir "/dev/shm" 2
+scan_dir "/etc" 2; scan_dir "/etc/systemd" 3
+scan_dir "/usr/local/bin" 2; scan_dir "/usr/local/sbin" 2
+scan_dir "/home" 3; scan_dir "/root" 3
+
+echo ""
+echo "===== RECENTLY MODIFIED SETUID/SETGID BINARIES ====="
+find /usr /bin /sbin -maxdepth 4 -type f \\( -perm -4000 -o -perm -2000 \\) \
+  -mmin "-\${MINUTES}" 2>/dev/null | while read -r f; do
+    printf "  [!!] %-50s perms=%s  %s\n" "$f" "$(stat -c '%a' "$f")" "$(stat -c '%y' "$f" | cut -d. -f1)"
+done
+
+echo ""
+echo "===== /etc/passwd, /etc/shadow, /etc/sudoers MODIFIED? ====="
+for f in /etc/passwd /etc/shadow /etc/sudoers; do
+  [ -n "$(find "$f" -mmin "-\${MINUTES}" 2>/dev/null)" ] && \
+    printf "  [!!] %s modified: %s\n" "$f" "$(stat -c '%y' "$f" 2>/dev/null | cut -d. -f1)"
+done
+
+echo "===== END RECENT FILE CHANGES ====="
 `
   }
 

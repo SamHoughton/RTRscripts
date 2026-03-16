@@ -19,6 +19,7 @@ let currentScript   = null;
 let originalSrc     = "";
 let activeFilter    = "all";
 let activePlatform  = "crowdstrike";
+let activeOS        = "windows";
 let paramValues     = {};   // current values for the param form
 
 const CATEGORIES = [
@@ -65,13 +66,17 @@ const PLATFORMS = {
     label:      "Defender",
     color:      "#0078d4",
     generateCmd(script) {
-      return `// MDE Live Response:\nputfile ${script.name}\nrun ${script.name}`;
+      if (activeOS === "macos") {
+        return `// MDE on macOS:\n// MDE for Mac uses osquery/sensor — Live Response\n// may not be available. Use CrowdStrike or S1 for\n// full remote scripting on macOS endpoints.`;
+      }
+      return `// MDE Live Response:\n// 1. Upload to library first:\n//    Settings → Endpoints → Live Response\n//    → Upload files to library\n// 2. In Live Response session:\nputfile ${script.name}\nrun ${script.name}`;
     },
     quickref: [
-      { label: "Run script",    cmd: `putfile script.ps1\nrun script.ps1` },
-      { label: "Get file",      cmd: `getfile C:\\path\\to\\file` },
-      { label: "List directory",cmd: `dir C:\\Windows\\Temp` },
-      { label: "List processes",cmd: `processes` },
+      { label: "Upload to library", cmd: `Settings → Endpoints → Live Response → Upload files to library` },
+      { label: "Run script",        cmd: `putfile script.ps1\nrun script.ps1` },
+      { label: "Get file",          cmd: `getfile C:\\path\\to\\file` },
+      { label: "List directory",    cmd: `dir C:\\Windows\\Temp` },
+      { label: "List processes",    cmd: `processes` },
     ],
   },
 };
@@ -114,6 +119,135 @@ document.querySelectorAll(".platform-btn").forEach(btn => {
   btn.addEventListener("click", () => setPlatform(btn.dataset.platform));
 });
 
+/* ═══════════════════════════════════ OS DEFINITIONS ════════════════════ */
+
+const OS_DEFS = {
+  windows: { label: "Windows", monacoLang: "powershell", langLabel: "PowerShell · UTF-8" },
+  macos:   { label: "macOS",   monacoLang: "shell",      langLabel: "Bash · UTF-8" },
+  linux:   { label: "Linux",   monacoLang: "shell",      langLabel: "Bash · UTF-8" },
+};
+
+function setOS(id) {
+  activeOS = id;
+
+  // Sidebar OS buttons
+  document.querySelectorAll(".os-btn").forEach(b =>
+    b.classList.toggle("active", b.dataset.os === id));
+
+  // Header badge
+  const badge = document.getElementById("brand-os-label");
+  if (badge) badge.textContent = OS_DEFS[id].label;
+
+  // Status bar language label
+  const langEl = document.getElementById("status-lang");
+  if (langEl) langEl.textContent = OS_DEFS[id].langLabel;
+
+  // Monaco language
+  if (editor && currentScript) {
+    const model = editor.getModel();
+    if (model) monaco.editor.setModelLanguage(model, OS_DEFS[id].monacoLang);
+  }
+
+  // On macOS/Linux, MDE platform is less applicable — keep but don't auto-switch
+  // Save preference
+  localStorage.setItem("rtr_os", id);
+
+  // Reload sidebar + deselect if current script doesn't match OS
+  if (currentScript && currentScript.os !== id) {
+    currentScript = null;
+    const titleEl = document.getElementById("meta-title");
+    if (titleEl) { titleEl.textContent = "Select a script"; titleEl.classList.remove("has-script"); }
+    document.getElementById("meta-tags").innerHTML = "";
+    document.getElementById("info-description").textContent = "—";
+    document.getElementById("info-usage").textContent = "—";
+    document.getElementById("param-section").style.display = "none";
+    if (editor) editor.setValue("");
+    history.replaceState(null, "", location.pathname);
+  }
+
+  renderSidebar(activeFilter, document.getElementById("search-input").value);
+}
+
+document.querySelectorAll(".os-btn").forEach(btn => {
+  btn.addEventListener("click", () => setOS(btn.dataset.os));
+});
+
+/* ═══════════════════════════════════ LANDING PAGE ══════════════════════ */
+
+(function initLanding() {
+  const overlay     = document.getElementById("landing");
+  const step2       = document.getElementById("landing-step2");
+  const enterBtn    = document.getElementById("landing-enter");
+  const skipBtn     = document.getElementById("landing-skip");
+  const brandBadge  = document.getElementById("brand-os-badge");
+
+  let landingOS       = null;
+  let landingPlatform = null;
+
+  // If user has visited before, skip landing
+  const savedOS       = localStorage.getItem("rtr_os");
+  const savedPlatform = localStorage.getItem("rtr_platform");
+  if (savedOS && savedPlatform) {
+    overlay.classList.add("hidden");
+    setOS(savedOS);
+    setPlatform(savedPlatform);
+    return;
+  }
+
+  // OS tile click
+  document.querySelectorAll(".os-tile").forEach(tile => {
+    tile.addEventListener("click", () => {
+      document.querySelectorAll(".os-tile").forEach(t => t.classList.remove("selected"));
+      tile.classList.add("selected");
+      landingOS = tile.dataset.os;
+      step2.classList.add("visible");
+      checkEnterReady();
+    });
+  });
+
+  // Platform button click (landing)
+  document.querySelectorAll(".landing-plat-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".landing-plat-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      landingPlatform = btn.dataset.platform;
+      checkEnterReady();
+    });
+  });
+
+  function checkEnterReady() {
+    enterBtn.disabled = !(landingOS && landingPlatform);
+  }
+
+  function dismissLanding() {
+    if (landingOS)       setOS(landingOS);
+    if (landingPlatform) setPlatform(landingPlatform);
+    localStorage.setItem("rtr_os",       landingOS       || "windows");
+    localStorage.setItem("rtr_platform", landingPlatform || "crowdstrike");
+    overlay.classList.add("dismissing");
+    setTimeout(() => overlay.classList.add("hidden"), 420);
+  }
+
+  enterBtn.addEventListener("click", () => { if (!enterBtn.disabled) dismissLanding(); });
+  skipBtn.addEventListener("click",  dismissLanding);
+
+  // Brand badge re-opens landing
+  brandBadge.addEventListener("click", () => {
+    overlay.classList.remove("hidden", "dismissing");
+    // Pre-select current choices
+    document.querySelectorAll(".os-tile").forEach(t => {
+      t.classList.toggle("selected", t.dataset.os === activeOS);
+    });
+    document.querySelectorAll(".landing-plat-btn").forEach(b => {
+      b.classList.toggle("selected", b.dataset.platform === activePlatform);
+    });
+    landingOS       = activeOS;
+    landingPlatform = activePlatform;
+    step2.classList.add("visible");
+    checkEnterReady();
+  });
+})();
+
 /* ═══════════════════════════════════ SIDEBAR ════════════════════════════ */
 
 function renderSidebar(filter = "all", query = "") {
@@ -125,12 +259,13 @@ function renderSidebar(filter = "all", query = "") {
   CATEGORIES.forEach(cat => {
     const scripts = window.RTR_SCRIPTS.filter(s => {
       const matchesCat   = s.category === cat;
+      const matchesOS    = s.os === activeOS;
       const matchesPhase = filter === "all" || s.irPhase.includes(filter);
       const matchesQuery = !q ||
         s.name.toLowerCase().includes(q) ||
         s.shortDesc.toLowerCase().includes(q) ||
         s.category.toLowerCase().includes(q);
-      return matchesCat && matchesPhase && matchesQuery;
+      return matchesCat && matchesOS && matchesPhase && matchesQuery;
     });
 
     if (scripts.length === 0) return;
@@ -173,9 +308,10 @@ function renderSidebar(filter = "all", query = "") {
 
   const countEl = document.getElementById("script-count");
   if (countEl) {
-    countEl.textContent = total === window.RTR_SCRIPTS.length
+    const osTotal = window.RTR_SCRIPTS.filter(s => s.os === activeOS).length;
+    countEl.textContent = total === osTotal
       ? `${total} scripts`
-      : `${total} of ${window.RTR_SCRIPTS.length} scripts`;
+      : `${total} of ${osTotal} scripts`;
   }
 }
 
@@ -199,6 +335,13 @@ function loadScript(script) {
     editor.setValue(script.source);
     editor.setScrollPosition({ scrollTop: 0 });
     editor.revealLine(1);
+    // Switch Monaco language to match script OS
+    const lang = OS_DEFS[script.os]?.monacoLang || "powershell";
+    const model = editor.getModel();
+    if (model) monaco.editor.setModelLanguage(model, lang);
+    // Update status bar language label
+    const langEl = document.getElementById("status-lang");
+    if (langEl) langEl.textContent = OS_DEFS[script.os]?.langLabel || "PowerShell · UTF-8";
   }
 
   // URL hash routing — makes scripts bookmarkable
@@ -766,5 +909,7 @@ function initMonaco() {
 /* ═══════════════════════════════════ BOOT ═══════════════════════════════ */
 
 renderSidebar("all", "");
-setPlatform("crowdstrike");   // initialise platform indicator + quick ref
+// Boot: platform + quick ref initialised by landing page or localStorage defaults
+// OS buttons default to 'windows' (set in HTML), platform dot set by setPlatform
+setPlatform(localStorage.getItem("rtr_platform") || "crowdstrike");
 initMonaco();

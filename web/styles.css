@@ -802,6 +802,243 @@ html, body {
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ── LANDING OVERLAY ────────────────────────────────────────────────────── */
+.landing-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-base);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.landing-overlay.dismissing {
+  opacity: 0;
+  transform: scale(1.04);
+  pointer-events: none;
+}
+.landing-overlay.hidden { display: none; }
+
+.landing-inner {
+  max-width: 680px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+.landing-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 40px;
+}
+.landing-logo { width: 32px; height: 32px; border-radius: 7px; }
+.landing-brand-name {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text-primary);
+}
+
+.landing-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  line-height: 1.2;
+}
+.landing-sub {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 40px;
+  line-height: 1.6;
+}
+
+/* ── OS Tiles ─────────────────────────────────────────────────────────── */
+.landing-os-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+  margin-bottom: 32px;
+}
+
+.os-tile {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 28px 16px 24px;
+  cursor: pointer;
+  transition: background var(--transition-med), border-color var(--transition-med), transform var(--transition-med), box-shadow var(--transition-med);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-secondary);
+}
+.os-tile:hover {
+  background: var(--bg-hover);
+  border-color: #404560;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  color: var(--text-primary);
+}
+.os-tile.selected {
+  border-color: var(--text-accent);
+  background: var(--bg-active);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 1px rgba(88,166,255,0.3), 0 8px 32px rgba(88,166,255,0.1);
+}
+.os-tile-icon {
+  width: 36px; height: 36px;
+  color: inherit;
+  transition: color var(--transition-med);
+}
+.os-tile.selected .os-tile-icon { color: var(--text-accent); }
+.os-tile-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+.os-tile-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ── Step 2: Platform picker ──────────────────────────────────────────── */
+.landing-step2 {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.35s ease, opacity 0.35s ease;
+}
+.landing-step2.visible {
+  max-height: 200px;
+  opacity: 1;
+}
+
+.landing-step2-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.landing-plat-row {
+  display: flex;
+  gap: 10px;
+}
+.landing-plat-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+.landing-plat-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.landing-plat-btn.selected { border-color: var(--text-accent); color: var(--text-primary); background: var(--bg-active); }
+
+.lp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.lp-dot-cs  { background: var(--platform-cs); }
+.lp-dot-s1  { background: var(--platform-s1); }
+.lp-dot-mde { background: var(--platform-mde); }
+
+.landing-enter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 28px;
+  background: var(--text-accent);
+  border: none;
+  border-radius: var(--radius);
+  color: #0d0e10;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast);
+  letter-spacing: -0.2px;
+}
+.landing-enter-btn svg { width: 16px; height: 16px; }
+.landing-enter-btn:disabled { opacity: 0.35; cursor: default; }
+.landing-enter-btn:not(:disabled):hover { background: #79b8ff; transform: translateX(2px); }
+
+.landing-skip {
+  margin-top: 24px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color var(--transition-fast);
+}
+.landing-skip:hover { color: var(--text-secondary); }
+
+/* ── OS switcher in header brand ──────────────────────────────────────── */
+.brand-os-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  letter-spacing: 0.3px;
+}
+.brand-os-badge:hover { background: var(--bg-hover); color: var(--text-secondary); }
+
+/* ── OS switcher bar in sidebar ───────────────────────────────────────── */
+.os-switcher-bar {
+  display: flex;
+  gap: 4px;
+  padding: 10px 12px 6px;
+  flex-shrink: 0;
+}
+.os-btn {
+  flex: 1;
+  padding: 5px 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+.os-btn:hover { color: var(--text-secondary); background: var(--bg-hover); }
+.os-btn.active {
+  background: var(--bg-active);
+  border-color: rgba(88,166,255,0.4);
+  color: var(--text-accent);
+}
+
 /* ── PLATFORM SWITCHER ──────────────────────────────────────────────────── */
 .platform-switcher {
   display: flex;

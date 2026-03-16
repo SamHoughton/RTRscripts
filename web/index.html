@@ -3,11 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RTR Labs — CrowdStrike Script Library</title>
+  <title>RTR Labs — IR Script Library</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <!-- ═══ LANDING OVERLAY ══════════════════════════════════════════════════ -->
+  <div id="landing" class="landing-overlay" aria-modal="true" role="dialog">
+    <div class="landing-inner">
+
+      <div class="landing-brand">
+        <img src="favicon.svg" class="landing-logo" alt="RTR Labs" />
+        <span class="landing-brand-name">RTR Labs</span>
+      </div>
+
+      <h1 class="landing-title">What are you responding on?</h1>
+      <p class="landing-sub">Pick your target OS and EDR — we'll load the right scripts.</p>
+
+      <!-- Step 1: OS tiles -->
+      <div class="landing-os-grid" id="landing-os-grid">
+        <button class="os-tile" data-os="windows">
+          <svg class="os-tile-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 5.6L10.5 4.5v7H3V5.6zm8.5-1.27L21 3v8.5h-9.5V4.33zM3 12.5h7.5V19.5L3 18.4V12.5zm8.5 0H21V21l-9.5-1.33V12.5z"/>
+          </svg>
+          <span class="os-tile-name">Windows</span>
+          <span class="os-tile-hint">PowerShell scripts</span>
+        </button>
+        <button class="os-tile" data-os="macos">
+          <svg class="os-tile-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+          </svg>
+          <span class="os-tile-name">macOS</span>
+          <span class="os-tile-hint">Bash / Zsh scripts</span>
+        </button>
+        <button class="os-tile" data-os="linux">
+          <svg class="os-tile-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20.52 21H3.48C2.66 21 2 20.34 2 19.52V4.48C2 3.66 2.66 3 3.48 3h17.04C21.34 3 22 3.66 22 4.48v15.04c0 .82-.66 1.48-1.48 1.48zM5.07 7.82L8 10.75l-2.93 2.93 1.06 1.07L9.13 11.8l.69.7-.69.69 1.06 1.06 1.75-1.74-4-4.04-1.87 1.36zM12.5 14.5h6V13h-6v1.5z"/>
+          </svg>
+          <span class="os-tile-name">Linux</span>
+          <span class="os-tile-hint">Bash scripts</span>
+        </button>
+      </div>
+
+      <!-- Step 2: Platform (slides in after OS picked) -->
+      <div class="landing-step2" id="landing-step2">
+        <p class="landing-step2-label">Now pick your EDR platform:</p>
+        <div class="landing-plat-row" id="landing-plat-row">
+          <button class="landing-plat-btn" data-platform="crowdstrike">
+            <span class="lp-dot lp-dot-cs"></span>CrowdStrike
+          </button>
+          <button class="landing-plat-btn" data-platform="sentinelone">
+            <span class="lp-dot lp-dot-s1"></span>SentinelOne
+          </button>
+          <button class="landing-plat-btn" data-platform="defender">
+            <span class="lp-dot lp-dot-mde"></span>Defender
+          </button>
+        </div>
+        <button id="landing-enter" class="landing-enter-btn" disabled>
+          Open Script Library
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </div>
+
+      <button class="landing-skip" id="landing-skip">Skip — I'll configure this later</button>
+    </div>
+  </div>
 
   <!-- ═══ HEADER ════════════════════════════════════════════════════════════ -->
   <header class="app-header">
@@ -15,7 +76,9 @@
       <img src="favicon.svg" class="brand-icon" alt="RTR Labs" />
       <span class="brand-name">RTR Labs</span>
       <span class="brand-sep"></span>
-      <span class="brand-sub">rtrlabs.io</span>
+      <button class="brand-os-badge" id="brand-os-badge" title="Switch OS / Platform">
+        <span id="brand-os-label">Windows</span>
+      </button>
     </div>
 
     <!-- ═══ PLATFORM SWITCHER ════════════════════════════════════════════ -->
@@ -43,7 +106,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
         Copy
       </button>
-      <button id="btn-download" class="btn btn-secondary" title="Download script as .ps1">
+      <button id="btn-download" class="btn btn-secondary" title="Download script">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Download
       </button>
@@ -59,6 +122,14 @@
 
     <!-- ═══ SIDEBAR ═══════════════════════════════════════════════════════════ -->
     <aside class="sidebar">
+
+      <!-- OS switcher row -->
+      <div class="os-switcher-bar" id="os-switcher-bar">
+        <button class="os-btn active" data-os="windows">Win</button>
+        <button class="os-btn" data-os="macos">Mac</button>
+        <button class="os-btn" data-os="linux">Linux</button>
+      </div>
+
       <div class="sidebar-search">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -97,7 +168,7 @@
       <div class="status-bar">
         <span id="status-modified" class="status-chip status-clean">Unmodified</span>
         <span id="status-lines" class="status-info"></span>
-        <span class="status-info">PowerShell · UTF-8</span>
+        <span id="status-lang" class="status-info">PowerShell · UTF-8</span>
         <span id="status-platform" class="platform-indicator">
           <span class="platform-dot" id="platform-dot"></span>
           <span id="platform-label">CrowdStrike</span>
@@ -129,7 +200,7 @@
       </section>
 
       <section class="info-section">
-        <h3>RTR Usage</h3>
+        <h3>Deployment</h3>
         <div class="code-block" id="info-usage">—</div>
       </section>
 
