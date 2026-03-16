@@ -1451,3 +1451,261 @@ html, body {
   text-overflow: ellipsis;
 }
 .attack-script-item:hover { background: rgba(74,254,145,0.08); color: var(--text-accent); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE NAVIGATION — Hamburger + Sidebar Overlay
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Sidebar overlay — tap to close on mobile */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 250;
+}
+.sidebar-overlay.active { display: block; }
+
+/* Hamburger button — hidden on desktop */
+.btn-hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius);
+}
+.btn-hamburger span {
+  display: block;
+  height: 2px;
+  background: var(--text-secondary);
+  border-radius: 1px;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+.btn-hamburger:hover span { background: var(--text-accent); }
+/* Open state */
+.sidebar-open .btn-hamburger span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.sidebar-open .btn-hamburger span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.sidebar-open .btn-hamburger span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Mobile-only utility */
+.mobile-only { display: none; }
+
+/* Info panel close button */
+.info-panel-close {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 10px 0 14px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  width: 100%;
+  font-family: inherit;
+  transition: color 0.15s;
+}
+.info-panel-close svg { width: 16px; height: 16px; flex-shrink: 0; }
+.info-panel-close:hover { color: var(--text-primary); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE — 1000px (hide info panel by default, show as slide-in panel)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 1000px) {
+  :root {
+    --info-w: 0px;
+  }
+
+  /* Allow overlay panels to overflow body */
+  html, body { overflow: visible; }
+  .app-body   { overflow: hidden; }
+
+  .info-panel {
+    position: fixed;
+    top: var(--header-h);
+    right: 0;
+    bottom: 0;
+    width: min(340px, 92vw);
+    z-index: 300;
+    border-left: 1px solid var(--border);
+    box-shadow: -8px 0 40px rgba(0,0,0,0.6);
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    overflow-y: auto;
+  }
+  .info-panel.panel-open {
+    transform: translateX(0);
+  }
+  .mobile-only { display: flex; }
+}
+
+/* Dim background behind info panel when open on mobile */
+@media (max-width: 1000px) {
+  body.info-panel-open::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 299;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE — 768px (tablet: sidebar becomes drawer)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .btn-hamburger { display: flex; }
+
+  /* Sidebar becomes a fixed off-canvas drawer */
+  .sidebar {
+    position: fixed;
+    top: var(--header-h);
+    left: 0;
+    bottom: 0;
+    z-index: 260;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 30px rgba(0,0,0,0.5);
+    /* Keep sidebar width but constrain on small screens */
+    width: min(var(--sidebar-w), 85vw);
+  }
+  .sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+
+  /* Full-width editor panel */
+  .editor-panel {
+    width: 100%;
+  }
+
+  /* Header: compress */
+  .app-header {
+    padding: 0 10px;
+    gap: 8px;
+  }
+
+  /* Hide text labels — icon-only header buttons on tablet */
+  .header-actions .btn {
+    font-size: 0;          /* hides text nodes */
+    padding: 6px 8px;
+    min-width: 34px;
+    justify-content: center;
+    gap: 0;
+  }
+  .header-actions .btn svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  /* Hide secondary actions on small screens */
+  .header-divider { display: none; }
+  #btn-diff,
+  #btn-export-all,
+  #btn-new { display: none; }
+
+  /* Platform switcher: tighter */
+  .platform-switcher { gap: 2px; }
+  .platform-btn { padding: 4px 8px; font-size: 11px; }
+
+  /* Meta bar: truncate harder */
+  .meta-title { font-size: 11px; max-width: 45vw; }
+  .meta-tags { display: none; }  /* tags visible in info panel */
+
+  /* Landing: stack tiles */
+  .landing-title { font-size: 20px; }
+  .landing-sub { font-size: 13px; }
+  .landing-os-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    max-width: 260px;
+  }
+  .os-tile { padding: 14px 20px; flex-direction: row; gap: 14px; text-align: left; }
+  .os-tile-hint { display: none; }
+  .landing-brand { margin-bottom: 28px; }
+  .landing-inner { gap: 0; padding: 0 8px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE — 480px (phone)
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .app-header { height: 50px; }
+  :root { --header-h: 50px; }
+
+  /* Brand: hide OS badge on very small screens */
+  .brand-sep,
+  .brand-os-badge { display: none; }
+
+  /* Platform switcher abbreviations */
+  .platform-switcher { gap: 2px; }
+
+  /* Modals: full-screen on phone */
+  .modal-box {
+    max-width: 100vw;
+    max-height: 92vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    width: 100%;
+  }
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal-overlay.open .modal-box {
+    transform: translateY(0);
+  }
+  .modal-box { transform: translateY(100%); }
+
+  /* Diff modal: single column on phone */
+  .diff-box { max-height: 90vh; }
+
+  /* Playbooks grid: single column */
+  .playbooks-list { grid-template-columns: 1fr; }
+
+  /* ATT&CK grid: single column */
+  .attack-grid { grid-template-columns: 1fr 1fr; }
+
+  /* Landing title */
+  .landing-title { font-size: 18px; }
+  .landing-brand-name { font-size: 15px; }
+
+  /* Status bar: compress */
+  .status-bar { font-size: 10px; padding: 0 10px; gap: 8px; }
+  #btn-share { display: none; }
+
+  /* Toast: full-width */
+  .toast {
+    left: 12px;
+    right: 12px;
+    transform: none;
+    bottom: 16px;
+    text-align: center;
+    max-width: none;
+  }
+  .toast.show { transform: none; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOUCH TARGET IMPROVEMENTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (pointer: coarse) {
+  /* Minimum 44px touch targets */
+  .btn { min-height: 40px; }
+  .os-btn { min-height: 36px; padding: 6px 12px; }
+  .filter-btn { min-height: 36px; }
+  .nav-item { padding: 10px 10px; }
+  .platform-btn { min-height: 34px; }
+  .nav-star-btn { width: 36px; height: 36px; opacity: 1; }  /* always visible on touch */
+  .landing-plat-btn { min-height: 48px; }
+  .os-tile { min-height: 60px; }
+}

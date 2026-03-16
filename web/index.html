@@ -3,7 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RTR Labs — IR Script Library</title>
+  <title>RTR Labs — IR Script Library for CrowdStrike, SentinelOne &amp; MDE</title>
+  <meta name="description" content="Open-source incident response script library for CrowdStrike Falcon RTR, SentinelOne, and Microsoft Defender. 36+ PowerShell and Bash scripts for Windows, macOS, and Linux triage, containment, and eradication." />
+  <meta name="keywords" content="incident response, RTR, CrowdStrike, SentinelOne, Defender, PowerShell, Bash, IR scripts, endpoint security, DFIR, MITRE ATT&CK" />
+  <meta name="author" content="RTR Labs" />
+  <meta name="robots" content="index, follow" />
+  <meta property="og:type"        content="website" />
+  <meta property="og:title"       content="RTR Labs — IR Script Library" />
+  <meta property="og:description" content="36+ incident response scripts for CrowdStrike, SentinelOne &amp; MDE. Windows, macOS, and Linux triage, containment, and eradication." />
+  <meta property="og:url"         content="https://rtrlabs.io" />
+  <meta property="og:site_name"   content="RTR Labs" />
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="RTR Labs — IR Script Library" />
+  <meta name="twitter:description" content="36+ incident response scripts for CrowdStrike, SentinelOne &amp; MDE. Windows, macOS, and Linux." />
+  <link rel="canonical" href="https://rtrlabs.io" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,8 +34,8 @@
         <span class="landing-brand-name">RTR Labs</span>
       </div>
 
-      <h1 class="landing-title">What are you responding on?</h1>
-      <p class="landing-sub">Pick your target OS and EDR — we'll load the right scripts.</p>
+      <h1 class="landing-title">Ready to respond.</h1>
+      <p class="landing-sub">Pick your target OS and EDR platform — we'll load the right scripts for your incident.</p>
 
       <!-- Step 1: OS tiles -->
       <div class="landing-os-grid" id="landing-os-grid">
@@ -73,8 +86,16 @@
     </div>
   </div>
 
+  <!-- ═══ SIDEBAR OVERLAY (mobile) ═══════════════════════════════════════ -->
+  <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
+
   <!-- ═══ HEADER ════════════════════════════════════════════════════════════ -->
   <header class="app-header">
+    <!-- Hamburger — mobile only -->
+    <button id="btn-sidebar-toggle" class="btn-hamburger" aria-label="Toggle sidebar" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+
     <div class="header-brand">
       <img src="favicon.svg" class="brand-icon" alt="RTR Labs" />
       <span class="brand-name">RTR Labs</span>
@@ -173,6 +194,10 @@
         <div class="meta-title" id="meta-title">Select a script</div>
         <div class="meta-tags" id="meta-tags"></div>
         <div class="meta-spacer"></div>
+        <!-- Mobile: info panel toggle -->
+        <button id="btn-info-toggle" class="btn-icon mobile-only" title="Script details" aria-label="Show script details">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </button>
         <button id="btn-share" class="btn-icon" title="Copy share link">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
         </button>
@@ -194,6 +219,12 @@
 
     <!-- ═══ INFO PANEL ═══════════════════════════════════════════════════════ -->
     <aside class="info-panel" id="info-panel">
+
+      <!-- Mobile close button -->
+      <button id="btn-info-close" class="info-panel-close mobile-only" aria-label="Close details">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        Close details
+      </button>
 
       <section class="info-section">
         <h3>About this script</h3>

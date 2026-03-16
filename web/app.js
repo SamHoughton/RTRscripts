@@ -552,6 +552,7 @@ function renderSidebar(filter = "all", query = "") {
 /* ═══════════════════════════════════ LOAD SCRIPT ════════════════════════ */
 
 function loadScriptWithTransition(script) {
+  closeSidebar();  // no-op on desktop (body won't have sidebar-open class)
   const container = document.getElementById("editor-container");
   container.classList.add("fading");
   setTimeout(() => {
@@ -1234,12 +1235,14 @@ document.addEventListener("keydown", e => {
     searchInput.focus();
     searchInput.select();
   }
-  // Escape → blur search / close modals
+  // Escape → blur search / close modals / close mobile panels
   if (e.key === "Escape") {
-    if (document.getElementById("diff-modal")?.classList.contains("open"))       { closeDiffModal(); }
+    if (document.getElementById("diff-modal")?.classList.contains("open"))           { closeDiffModal(); }
     else if (document.getElementById("playbooks-modal")?.classList.contains("open")) { closePlaybooksModal(); }
     else if (document.getElementById("attack-modal")?.classList.contains("open"))    { closeATTACKModal(); }
-    else if (document.getElementById("workflow-modal").classList.contains("open")) { closeWorkflowModal(); }
+    else if (document.getElementById("workflow-modal").classList.contains("open"))   { closeWorkflowModal(); }
+    else if (document.getElementById("info-panel")?.classList.contains("panel-open")){ closeInfoPanel(); }
+    else if (document.body.classList.contains("sidebar-open"))                        { closeSidebar(); }
     else if (document.activeElement === searchInput) {
       searchInput.blur();
       searchInput.value = "";
@@ -1296,6 +1299,55 @@ function showToast(msg) {
   clearTimeout(t._tid);
   t._tid = setTimeout(() => t.classList.remove("show"), 2400);
 }
+
+/* ═══════════════════════════════════ MOBILE UI ══════════════════════════ */
+
+function openSidebar() {
+  document.body.classList.add("sidebar-open");
+  const overlay = document.getElementById("sidebar-overlay");
+  if (overlay) { overlay.classList.add("active"); overlay.setAttribute("aria-hidden", "false"); }
+  document.getElementById("btn-sidebar-toggle")?.setAttribute("aria-expanded", "true");
+}
+
+function closeSidebar() {
+  document.body.classList.remove("sidebar-open");
+  const overlay = document.getElementById("sidebar-overlay");
+  if (overlay) { overlay.classList.remove("active"); overlay.setAttribute("aria-hidden", "true"); }
+  document.getElementById("btn-sidebar-toggle")?.setAttribute("aria-expanded", "false");
+}
+
+function openInfoPanel() {
+  document.getElementById("info-panel")?.classList.add("panel-open");
+  document.body.classList.add("info-panel-open");
+}
+
+function closeInfoPanel() {
+  document.getElementById("info-panel")?.classList.remove("panel-open");
+  document.body.classList.remove("info-panel-open");
+}
+
+// Tap dim overlay → close info panel on mobile
+document.addEventListener("click", e => {
+  if (document.body.classList.contains("info-panel-open") &&
+      !document.getElementById("info-panel")?.contains(e.target) &&
+      e.target !== document.getElementById("btn-info-toggle")) {
+    closeInfoPanel();
+  }
+});
+
+// Hamburger
+document.getElementById("btn-sidebar-toggle")?.addEventListener("click", () => {
+  document.body.classList.contains("sidebar-open") ? closeSidebar() : openSidebar();
+});
+
+// Tap overlay → close sidebar
+document.getElementById("sidebar-overlay")?.addEventListener("click", closeSidebar);
+
+// Info panel toggle (mobile)
+document.getElementById("btn-info-toggle")?.addEventListener("click", openInfoPanel);
+document.getElementById("btn-info-close")?.addEventListener("click", closeInfoPanel);
+
+// Closing the sidebar on script load is handled inside loadScriptWithTransition.
 
 /* ═══════════════════════════════════ MONACO ═════════════════════════════ */
 
