@@ -755,7 +755,7 @@ if ($blockers.Count -gt 0) {
 } elseif ($warnings.Count -gt 0) {
     Write-Output "[CAUTION] REVIEW BEFORE ISOLATING:"
     $warnings | ForEach-Object { Write-Output "  >> $_" }
-    Write-Output "`nIf risk accepted: Falcon Console → Hosts → [host] → Isolate Host"
+    Write-Output "\`nIf risk accepted: Falcon Console → Hosts → [host] → Isolate Host"
 } else {
     Write-Output "[GO] Safe to isolate. No blockers or warnings."
     Write-Output "Proceed: Falcon Console → Hosts → [host] → Isolate Host"
