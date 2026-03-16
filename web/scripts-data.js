@@ -1641,7 +1641,7 @@ Write-Output "===== END ISOLATE PREP ====="
 
   // ══════════════════════════════════════════════════════ Windows — ERADICATION
   {
-    id: "kill-process",
+    id: "eradicate-process",
     category: "Remediation",
     os: "windows",
     supportedPlatforms: ["crowdstrike","sentinelone","defender"],
