@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CrowdStrike RTR Script Lab</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════════ HEADER -->
+  <header class="app-header">
+    <div class="header-brand">
+      <svg class="brand-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+      <span class="brand-name">RTR Script Lab</span>
+      <span class="brand-sub">CrowdStrike Real Time Response</span>
+    </div>
+    <div class="header-actions">
+      <button id="btn-copy" class="btn btn-secondary" title="Copy script to clipboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        Copy
+      </button>
+      <button id="btn-download" class="btn btn-secondary" title="Download script as .ps1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </button>
+      <button id="btn-reset" class="btn btn-ghost" title="Reset editor to original script">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+        Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════ MAIN LAYOUT -->
+  <div class="app-body">
+
+    <!-- ═══ SIDEBAR ══════════════════════════════════════════════════════ -->
+    <aside class="sidebar">
+      <div class="sidebar-search">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="search-input" placeholder="Search scripts…" autocomplete="off" />
+      </div>
+
+      <div class="filter-bar">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="Identification">Identify</button>
+        <button class="filter-btn" data-filter="Containment">Contain</button>
+        <button class="filter-btn" data-filter="Eradication">Eradicate</button>
+      </div>
+
+      <nav class="script-nav" id="script-nav">
+        <!-- Populated by JS -->
+      </nav>
+    </aside>
+
+    <!-- ═══ EDITOR PANEL ══════════════════════════════════════════════════ -->
+    <main class="editor-panel">
+
+      <!-- Metadata bar -->
+      <div class="meta-bar" id="meta-bar">
+        <div class="meta-title" id="meta-title">Select a script</div>
+        <div class="meta-tags" id="meta-tags"></div>
+      </div>
+
+      <!-- Monaco editor mount point -->
+      <div id="editor-container"></div>
+
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span id="status-modified" class="status-chip status-clean">Unmodified</span>
+        <span id="status-lines" class="status-info"></span>
+        <span class="status-info">PowerShell · UTF-8</span>
+        <span id="status-msg" class="status-msg"></span>
+      </div>
+
+    </main>
+
+    <!-- ═══ INFO PANEL ════════════════════════════════════════════════════ -->
+    <aside class="info-panel" id="info-panel">
+
+      <section class="info-section">
+        <h3>About this script</h3>
+        <p id="info-description" class="info-desc">—</p>
+      </section>
+
+      <section class="info-section">
+        <h3>RTR Usage</h3>
+        <div class="code-block" id="info-usage">—</div>
+      </section>
+
+      <section class="info-section">
+        <h3>Checklist</h3>
+        <ul class="checklist" id="info-checklist">
+          <li><label><input type="checkbox" /> Reviewed script logic</label></li>
+          <li><label><input type="checkbox" /> Tested in lab environment</label></li>
+          <li><label><input type="checkbox" /> Confirmed permission level</label></li>
+          <li><label><input type="checkbox" /> Documented in case notes</label></li>
+        </ul>
+      </section>
+
+      <section class="info-section">
+        <h3>Quick Reference</h3>
+        <div class="quick-ref">
+          <div class="qr-item">
+            <span class="qr-label">Run script</span>
+            <code>runscript -CloudFile="…"</code>
+          </div>
+          <div class="qr-item">
+            <span class="qr-label">Get file</span>
+            <code>get C:\path\to\file</code>
+          </div>
+          <div class="qr-item">
+            <span class="qr-label">Put file</span>
+            <code>put C:\destination</code>
+          </div>
+          <div class="qr-item">
+            <span class="qr-label">List files</span>
+            <code>ls C:\Windows\Temp</code>
+          </div>
+        </div>
+      </section>
+
+    </aside>
+  </div>
+
+  <!-- ═══ TOAST NOTIFICATION ════════════════════════════════════════════ -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- Monaco Editor (CDN, no build step needed) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+  <script src="scripts-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
