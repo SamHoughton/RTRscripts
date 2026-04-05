@@ -50,7 +50,7 @@ Each script is tagged with the minimum permission required. Eradication scripts 
 
 ---
 
-## Script Reference — Windows (22 scripts · 36 total across all platforms)
+## Script Reference — Windows (27 scripts · 43 total across all platforms)
 
 ### Triage
 *Run these first. Establish situational awareness before taking any action.*
@@ -60,6 +60,7 @@ Each script is tagged with the minimum permission required. Eradication scripts 
 | [`triage/host-summary.ps1`](triage/host-summary.ps1) | Identification | Active Responder | OS version, uptime, local admins, AV products, last 5 patches |
 | [`triage/active-connections.ps1`](triage/active-connections.ps1) | Identification | Active Responder | All TCP/UDP sockets mapped to owning process + path, with anomaly hints |
 | [`triage/logged-on-users.ps1`](triage/logged-on-users.ps1) | Identification | Active Responder | Active sessions, Win32 logon enumeration, last 20 Security log 4624 events |
+| [`triage/defender-exclusions.ps1`](triage/defender-exclusions.ps1) | Identification | Active Responder | Defender exclusion paths/processes/extensions, ASR rules, tamper protection, recent detections |
 
 ### Process Investigation
 *Dig into what's running and why.*
@@ -76,6 +77,8 @@ Each script is tagged with the minimum permission required. Eradication scripts 
 |---|---|---|---|
 | [`artefact-collection/prefetch-dump.ps1`](artefact-collection/prefetch-dump.ps1) | Identification | Active Responder | List all Prefetch files with timestamps + IOC name matching |
 | [`artefact-collection/browser-history.ps1`](artefact-collection/browser-history.ps1) | Identification | Active Responder | Chrome, Edge, Firefox history from all user profiles (last 7 days) |
+| [`artefact-collection/event-log-forensics.ps1`](artefact-collection/event-log-forensics.ps1) | Identification | Active Responder | Security/System/PowerShell/WinRM events — logons, services, PS script blocks, Kerberos, tamper |
+| [`artefact-collection/registry-forensics.ps1`](artefact-collection/registry-forensics.ps1) | Identification | Active Responder | UserAssist (ROT13), BAM/DAM execution times, ShimCache, RecentDocs, Run/RunOnce keys |
 
 ### Persistence
 *Find what survives a reboot.*
@@ -93,6 +96,7 @@ Each script is tagged with the minimum permission required. Eradication scripts 
 |---|---|---|---|
 | [`lateral-movement/smb-sessions.ps1`](lateral-movement/smb-sessions.ps1) | Identification | Active Responder | Active SMB sessions, open shares, recent network connections |
 | [`lateral-movement/psremoting-activity.ps1`](lateral-movement/psremoting-activity.ps1) | Identification | Active Responder | PowerShell remoting sessions, WSMan activity, WinRM configuration |
+| [`lateral-movement/named-pipes.ps1`](lateral-movement/named-pipes.ps1) | Identification | Active Responder | All named pipes with C2 pattern matching (Cobalt Strike, Sliver, Havoc, Metasploit, PoshC2) |
 
 ### Credential Indicators
 *Look for signs of credential access or harvesting.*
@@ -109,6 +113,7 @@ Each script is tagged with the minimum permission required. Eradication scripts 
 |---|---|---|---|
 | [`file-system-iocs/recent-file-changes.ps1`](file-system-iocs/recent-file-changes.ps1) | Identification | Active Responder | Recently created/modified files in staging dirs, temp paths, user downloads |
 | [`file-system-iocs/suspicious-archives.ps1`](file-system-iocs/suspicious-archives.ps1) | Identification | Active Responder | Zip/rar/7z files in unusual locations — common tool staging artefact |
+| [`file-system-iocs/shadow-copy-status.ps1`](file-system-iocs/shadow-copy-status.ps1) | Identification | Active Responder | VSS shadow copies, deletion evidence (vssadmin/wmic/bcdedit in event log), boot recovery state |
 
 ### Remediation
 *Containment and eradication actions — always run with care.*
@@ -163,7 +168,7 @@ All macOS scripts are Bash/Zsh. Upload as `.sh` files with the `macos/` path pre
 
 ---
 
-## Script Reference — Linux (6 scripts)
+## Script Reference — Linux (8 scripts)
 
 All Linux scripts are Bash. Upload as `.sh` files with the `linux/` path prefix.
 
@@ -173,6 +178,7 @@ All Linux scripts are Bash. Upload as `.sh` files with the `linux/` path prefix.
 |---|---|---|
 | [`linux/triage/host-summary.sh`](linux/triage/host-summary.sh) | Identification | Distro, kernel, hardware info, last boot, current users, privileged accounts, network interfaces, EDR agents |
 | [`linux/triage/active-connections.sh`](linux/triage/active-connections.sh) | Identification | ss/netstat sockets with process info, DNS config, routes, neighbour cache, firewall state (ufw/firewalld/iptables) |
+| [`linux/triage/container-indicators.sh`](linux/triage/container-indicators.sh) | Identification | Container escape risk, Docker socket exposure, privileged containers, Kubernetes pod detection |
 
 ### Process Investigation
 
@@ -191,6 +197,7 @@ All Linux scripts are Bash. Upload as `.sh` files with the `linux/` path prefix.
 | Script | IR Phase | Description |
 |---|---|---|
 | [`linux/persistence/systemd-services.sh`](linux/persistence/systemd-services.sh) | Identification | Services with non-standard ExecStart paths, all enabled units, timers, custom unit files, crontabs, rc.local, at jobs |
+| [`linux/persistence/kernel-modules.sh`](linux/persistence/kernel-modules.sh) | Identification | LKM rootkit detection — modules without .ko files, hidden module cross-check, known rootkit names, DKMS |
 
 ### File System IOCs
 

@@ -4,20 +4,25 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RTR Labs — IR Script Library for CrowdStrike, SentinelOne &amp; MDE</title>
-  <meta name="description" content="Open-source incident response script library for CrowdStrike Falcon RTR, SentinelOne, and Microsoft Defender. 36+ PowerShell and Bash scripts for Windows, macOS, and Linux triage, containment, and eradication." />
+  <meta name="description" content="Open-source incident response script library for CrowdStrike Falcon RTR, SentinelOne, and Microsoft Defender. 43+ PowerShell and Bash scripts for Windows, macOS, and Linux triage, containment, and eradication." />
   <meta name="keywords" content="incident response, RTR, CrowdStrike, SentinelOne, Defender, PowerShell, Bash, IR scripts, endpoint security, DFIR, MITRE ATT&CK" />
   <meta name="author" content="RTR Labs" />
   <meta name="robots" content="index, follow" />
   <meta property="og:type"        content="website" />
   <meta property="og:title"       content="RTR Labs — IR Script Library" />
-  <meta property="og:description" content="36+ incident response scripts for CrowdStrike, SentinelOne &amp; MDE. Windows, macOS, and Linux triage, containment, and eradication." />
+  <meta property="og:description" content="43+ incident response scripts for CrowdStrike, SentinelOne &amp; MDE. Windows, macOS, and Linux triage, containment, and eradication." />
   <meta property="og:url"         content="https://rtrlabs.io" />
   <meta property="og:site_name"   content="RTR Labs" />
   <meta name="twitter:card"        content="summary_large_image" />
   <meta name="twitter:title"       content="RTR Labs — IR Script Library" />
-  <meta name="twitter:description" content="36+ incident response scripts for CrowdStrike, SentinelOne &amp; MDE. Windows, macOS, and Linux." />
+  <meta name="twitter:description" content="43+ incident response scripts for CrowdStrike, SentinelOne &amp; MDE. Windows, macOS, and Linux." />
   <link rel="canonical" href="https://rtrlabs.io" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#ef4444" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="RTR Scripts" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" />
@@ -359,5 +364,13 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="scripts-data.js"></script>
   <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .catch(() => { /* SW unavailable in this context — fine */ });
+      });
+    }
+  </script>
 </body>
 </html>

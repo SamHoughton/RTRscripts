@@ -66,7 +66,13 @@ const MITRE_TECHNIQUES = {
   "T1552.001": "Credentials in Files",
   "T1560":     "Archive Collected Data",
   "T1562":     "Impair Defenses",
+  "T1562.001": "Disable or Modify Tools",
+  "T1547.006": "Kernel Modules and Extensions",
+  "T1559.001": "Component Object Model",
   "T1574":     "Hijack Execution Flow",
+  "T1490":     "Inhibit System Recovery",
+  "T1610":     "Deploy Container",
+  "T1611":     "Escape to Host",
 };
 
 /* ═══════════════════════════════════ PLAYBOOKS ══════════════════════════ */

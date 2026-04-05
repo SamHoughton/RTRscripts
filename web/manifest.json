@@ -1,0 +1,37 @@
+{
+  "name": "RTR Scripts — IR Script Library",
+  "short_name": "RTR Scripts",
+  "description": "CrowdStrike RTR / EDR incident response scripts for Windows, macOS and Linux",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#ef4444",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "security", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Windows Scripts",
+      "url": "./index.html#host-summary",
+      "description": "Open Windows triage scripts"
+    },
+    {
+      "name": "Linux Scripts",
+      "url": "./index.html#linux-host-summary",
+      "description": "Open Linux triage scripts"
+    }
+  ]
+}
